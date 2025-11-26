@@ -60,6 +60,30 @@ const startGapi = (resolve: (val: boolean) => void) => {
 
         await window.gapi.client.init(initConfig);
         
+        // Try to restore token from localStorage after init
+        try {
+          const savedTokenStr = localStorage.getItem('google_drive_token');
+          if (savedTokenStr) {
+            const savedToken = JSON.parse(savedTokenStr);
+            // Check if token is still valid (not expired) and has access_token
+            const now = Math.floor(Date.now() / 1000);
+            const tokenAge = now - (savedToken.saved_at || 0);
+            const expiresIn = savedToken.expires_in || 3600;
+            
+            if (tokenAge < expiresIn && savedToken.access_token) {
+              // Token is still valid, restore it
+              window.gapi.client.setToken(savedToken);
+              console.log("[Drive] 從 localStorage 自動恢復 Token");
+            } else {
+              // Token expired or invalid, remove it
+              localStorage.removeItem('google_drive_token');
+              console.log("[Drive] localStorage 中的 Token 已過期或無效，已清除");
+            }
+          }
+        } catch (e) {
+          console.warn("[Drive] 無法從 localStorage 恢復 Token:", e);
+        }
+        
         gapiInited = true;
         maybeResolve(resolve);
       } catch (err) {
@@ -121,6 +145,17 @@ export const authenticate = async (): Promise<void> => {
         // 驗證 token 是否正確設定
         const token = window.gapi.client.getToken();
         if (token && token.access_token) {
+          // Save token to localStorage for cross-page sharing
+          try {
+            const tokenToSave = {
+              ...token,
+              saved_at: Math.floor(Date.now() / 1000), // Save timestamp for expiration check
+            };
+            localStorage.setItem('google_drive_token', JSON.stringify(tokenToSave));
+            console.log("[OAuth] 認證成功，Token 已保存到 localStorage");
+          } catch (e) {
+            console.warn("[OAuth] 無法保存 Token 到 localStorage:", e);
+          }
           console.log("[OAuth] 認證成功");
           resolve(resp);
         } else {
@@ -130,14 +165,52 @@ export const authenticate = async (): Promise<void> => {
     };
     
     // Check if we have a valid token
-    const token = window.gapi.client.getToken();
+    let token = window.gapi.client.getToken();
+    
+    // If no token in gapi, try to restore from localStorage
     if (token === null) {
-      console.log("[OAuth] 開始認證流程（需要用戶同意）");
-      tokenClient.requestAccessToken({ prompt: 'consent' });
-    } else {
-      console.log("[OAuth] 使用現有 token（靜默認證）");
-      tokenClient.requestAccessToken({ prompt: '' });
+      try {
+        const savedTokenStr = localStorage.getItem('google_drive_token');
+        if (savedTokenStr) {
+          const savedToken = JSON.parse(savedTokenStr);
+          // Check if token is still valid (not expired)
+          const now = Math.floor(Date.now() / 1000);
+          const tokenAge = now - (savedToken.saved_at || 0);
+          const expiresIn = savedToken.expires_in || 3600;
+          
+          if (tokenAge < expiresIn && savedToken.access_token) {
+            // Token is still valid, restore it
+            window.gapi.client.setToken(savedToken);
+            token = savedToken;
+            console.log("[OAuth] 從 localStorage 恢復 Token");
+            
+            // If we successfully restored a valid token, resolve immediately
+            // No need to call requestAccessToken
+            clearTimeout(timeoutId);
+            resolve({});
+            return;
+          } else {
+            // Token expired, remove it
+            localStorage.removeItem('google_drive_token');
+            console.log("[OAuth] localStorage 中的 Token 已過期，已清除");
+          }
+        }
+      } catch (e) {
+        console.warn("[OAuth] 無法從 localStorage 讀取 Token:", e);
+      }
     }
+    
+    // If we have a valid token already set in gapi, resolve immediately
+    if (token !== null && token.access_token) {
+      clearTimeout(timeoutId);
+      console.log("[OAuth] 使用現有 token（靜默認證）");
+      resolve({});
+      return;
+    }
+    
+    // No valid token found, start authentication flow
+    console.log("[OAuth] 開始認證流程（需要用戶同意）");
+    tokenClient.requestAccessToken({ prompt: 'consent' });
   });
 };
 
@@ -162,15 +235,25 @@ export const setTokenManually = async (tokenData: {
     }
   }
   
-  // Set the token in gapi client
-  window.gapi.client.setToken({
+  // Prepare token object
+  const token = {
     access_token: tokenData.access_token,
     expires_in: tokenData.expires_in || 3600,
     scope: tokenData.scope || GOOGLE_DRIVE_SCOPES,
     token_type: tokenData.token_type || 'Bearer',
-  });
+  };
   
-  console.log("[Drive] ✅ Token 已手動設置");
+  // Set the token in gapi client
+  window.gapi.client.setToken(token);
+  
+  // Also save to localStorage for cross-page sharing
+  try {
+    localStorage.setItem('google_drive_token', JSON.stringify(token));
+    console.log("[Drive] ✅ Token 已手動設置並保存到 localStorage");
+  } catch (e) {
+    console.warn("[Drive] 無法保存 token 到 localStorage:", e);
+    console.log("[Drive] ✅ Token 已手動設置（但未保存到 localStorage）");
+  }
 };
 
 // Expose setTokenManually to window for easy access in browser console

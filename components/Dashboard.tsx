@@ -15,6 +15,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, views }) => {
   const [ignoreSyncError, setIgnoreSyncError] = useState(false);
   const [isDynamicOrigin, setIsDynamicOrigin] = useState(false);
 
+  // @ARCH:START Dashboard - FEAT: 載入學習統計
   useEffect(() => {
     // Load stats async
     const loadStats = async () => {
@@ -34,7 +35,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, views }) => {
 
     return unsub;
   }, []);
+  // @ARCH:END Dashboard - FEAT: 載入學習統計
 
+  // @ARCH: Dashboard - UX: 雲端同步流程
   const handleManualSync = () => {
       setIgnoreSyncError(false);
       // Trigger MANUAL sync (isManual = true) to allow auth popup
@@ -62,6 +65,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, views }) => {
         </div>
 
         {/* Sync Status / Button */}
+        {/* @ARCH:START Dashboard - UI: 雲端同步按鈕 */}
         {!GOOGLE_DRIVE_CLIENT_ID.includes("YOUR") && (
             <button 
                 onClick={handleManualSync}
@@ -76,6 +80,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, views }) => {
                 {syncStatus.isSyncing ? "備份中..." : syncStatus.error ? "備份失敗" : "雲端備份"}
             </button>
         )}
+        {/* @ARCH:END Dashboard - UI: 雲端同步按鈕 */}
       </div>
 
       {/* Sync Error Alert (Dismissible) */}
@@ -131,6 +136,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, views }) => {
       )}
 
       {/* Stats Cards - Gamified */}
+      {/* @ARCH:START Dashboard - UI: 統計卡片區塊 */}
       <div className="grid grid-cols-2 gap-4 lg:gap-8 mb-8 lg:mb-12">
         <div className="bg-white p-6 rounded-[2rem] border-2 border-b-8 border-red-100 shadow-sm flex flex-col items-center justify-center text-center relative overflow-hidden group hover:-translate-y-1 transition-transform">
           <div className="absolute top-0 right-0 w-16 h-16 bg-red-50 rounded-bl-[2rem] -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
@@ -143,9 +149,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, views }) => {
           <span className="text-sm font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full">總單字量</span>
         </div>
       </div>
+      {/* @ARCH:END Dashboard - UI: 統計卡片區塊 */}
 
       {/* Main Actions - Grid on desktop */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
+        {/* @ARCH:START Dashboard - UI: 開始複習按鈕 */}
         <button 
           onClick={() => onNavigate(views.PRACTICE)}
           disabled={stats.dueCards === 0}
@@ -165,7 +173,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, views }) => {
             </div>
           </div>
         </button>
+        {/* @ARCH:END Dashboard - UI: 開始複習按鈕 */}
 
+        {/* @ARCH:START Dashboard - UI: 製作新單字卡按鈕 */}
         <button 
           onClick={() => onNavigate(views.ADD_WORD)}
           className="p-8 rounded-[2rem] bg-white border-4 border-dashed border-slate-200 text-slate-400 hover:border-primary hover:text-primary hover:bg-indigo-50 transition-all group active:scale-95 flex flex-col items-center justify-center gap-4 h-full min-h-[160px]"
@@ -175,6 +185,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, views }) => {
           </div>
           <span className="font-black text-2xl">製作新單字卡</span>
         </button>
+        {/* @ARCH:END Dashboard - UI: 製作新單字卡按鈕 */}
       </div>
 
       {/* Feature Icons - Decorative footer */}

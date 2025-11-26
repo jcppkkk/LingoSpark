@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Icons } from '../constants';
 import { analyzeWord, generateMnemonicImage, extractWordsFromImage } from '../services/geminiService';
 import { createNewCard, saveCard, checkWordExists } from '../services/storageService';
-import { Flashcard } from '../types';
+import { Flashcard, CardStatus } from '../types';
 import FlashcardComponent from './FlashcardComponent';
 
 interface AddWordProps {
@@ -19,6 +19,9 @@ interface QueueItem {
   isDuplicate?: boolean;
 }
 
+const STORAGE_KEY_DETECTED_WORDS = 'lingospark_detected_words';
+const STORAGE_KEY_QUEUE = 'lingospark_addword_queue';
+
 const AddWord: React.FC<AddWordProps> = ({ onCancel, onSuccess }) => {
   const [input, setInput] = useState('');
   const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -26,6 +29,7 @@ const AddWord: React.FC<AddWordProps> = ({ onCancel, onSuccess }) => {
   
   // Image Upload State
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadButtonRef = useRef<HTMLButtonElement>(null);
   const [detectedWords, setDetectedWords] = useState<string[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -54,6 +58,85 @@ const AddWord: React.FC<AddWordProps> = ({ onCancel, onSuccess }) => {
     processQueue();
   }, [queue]); // Re-run whenever queue state updates (e.g. when an item finishes)
 
+  // 恢復保存的檢測單字和隊列
+  useEffect(() => {
+    try {
+      // 恢復檢測到的單字
+      const savedDetectedWords = localStorage.getItem(STORAGE_KEY_DETECTED_WORDS);
+      if (savedDetectedWords) {
+        const words = JSON.parse(savedDetectedWords);
+        if (Array.isArray(words) && words.length > 0) {
+          setDetectedWords(words);
+        }
+      }
+
+      // 恢復隊列（只恢復 PENDING 狀態的項目）
+      const savedQueue = localStorage.getItem(STORAGE_KEY_QUEUE);
+      if (savedQueue) {
+        const queueItems: QueueItem[] = JSON.parse(savedQueue);
+        // 只恢復 PENDING 狀態的項目，其他狀態需要重新處理
+        const pendingItems = queueItems.filter(item => item.status === 'PENDING');
+        if (pendingItems.length > 0) {
+          setQueue(pendingItems);
+        }
+      }
+    } catch (err) {
+      console.warn('無法從 localStorage 恢復數據:', err);
+    }
+  }, []);
+
+  // 保存檢測到的單字到 localStorage
+  useEffect(() => {
+    if (detectedWords.length > 0) {
+      try {
+        localStorage.setItem(STORAGE_KEY_DETECTED_WORDS, JSON.stringify(detectedWords));
+      } catch (err) {
+        console.warn('無法保存檢測到的單字到 localStorage:', err);
+      }
+    }
+  }, [detectedWords]);
+
+  // 保存隊列到 localStorage
+  useEffect(() => {
+    if (queue.length > 0) {
+      try {
+        // 只保存 PENDING 狀態的項目
+        const pendingItems = queue.filter(item => item.status === 'PENDING');
+        if (pendingItems.length > 0) {
+          localStorage.setItem(STORAGE_KEY_QUEUE, JSON.stringify(pendingItems));
+        } else {
+          // 如果沒有 PENDING 項目，清除保存的隊列
+          localStorage.removeItem(STORAGE_KEY_QUEUE);
+        }
+      } catch (err) {
+        console.warn('無法保存隊列到 localStorage:', err);
+      }
+    } else {
+      // 隊列為空時清除保存
+      localStorage.removeItem(STORAGE_KEY_QUEUE);
+    }
+  }, [queue]);
+
+  // 使用原生事件處理器確保檔案選擇對話框能正常打開
+  useEffect(() => {
+    const button = uploadButtonRef.current;
+    const fileInput = fileInputRef.current;
+    
+    if (!button || !fileInput) return;
+
+    const handleClick = (e: MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      // 在用戶交互事件中同步觸發，確保瀏覽器允許打開檔案選擇對話框
+      fileInput.click();
+    };
+
+    button.addEventListener('click', handleClick);
+    return () => {
+      button.removeEventListener('click', handleClick);
+    };
+  }, []);
+
   const processItem = async (item: QueueItem) => {
     // Helper to update THIS item's status
     const updateStatus = (updates: Partial<QueueItem>) => {
@@ -74,7 +157,8 @@ const AddWord: React.FC<AddWordProps> = ({ onCancel, onSuccess }) => {
 
         // C. AI Analysis (Text)
         const analysis = await analyzeWord(item.word);
-        let newCard = createNewCard(analysis);
+        // Create card with GENERATING status
+        let newCard = createNewCard(analysis, undefined, CardStatus.GENERATING);
 
         // D. Mark as Generating Image
         updateStatus({ status: 'GENERATING_IMAGE', card: newCard });
@@ -89,15 +173,17 @@ const AddWord: React.FC<AddWordProps> = ({ onCancel, onSuccess }) => {
             console.warn("Image gen failed, continuing with text-only card", imgErr);
         }
 
-        // E. Save to DB & Mark Success
+        // E. Save to DB (this will clear the GENERATING status) & Mark Success
         await saveCard(newCard);
-        updateStatus({ status: 'SUCCESS', card: newCard });
+        // Update card to have NORMAL status after save
+        const finalCard = { ...newCard, status: CardStatus.NORMAL };
+        updateStatus({ status: 'SUCCESS', card: finalCard });
 
         // Auto-preview logic: 
         // If user hasn't selected anything, OR if user is looking at this item (which was pending), refresh it.
         setPreviewItem(current => {
-            if (!current) return { ...item, status: 'SUCCESS', card: newCard };
-            if (current.id === item.id) return { ...item, status: 'SUCCESS', card: newCard };
+            if (!current) return { ...item, status: 'SUCCESS', card: finalCard };
+            if (current.id === item.id) return { ...item, status: 'SUCCESS', card: finalCard };
             return current;
         });
 
@@ -150,7 +236,8 @@ const AddWord: React.FC<AddWordProps> = ({ onCancel, onSuccess }) => {
 
     setIsScanning(true);
     setScanError(null);
-    setDetectedWords([]);
+    // 不清空已檢測的單字，而是追加新的結果
+    // setDetectedWords([]);
 
     const reader = new FileReader();
     reader.onloadend = async () => {
@@ -158,7 +245,16 @@ const AddWord: React.FC<AddWordProps> = ({ onCancel, onSuccess }) => {
         const base64String = reader.result as string;
         const words = await extractWordsFromImage(base64String);
         if (words.length > 0) {
-          setDetectedWords(words);
+          // 合併新檢測的單字，避免重複
+          setDetectedWords(prev => {
+            const combined = [...prev];
+            words.forEach(word => {
+              if (!combined.includes(word)) {
+                combined.push(word);
+              }
+            });
+            return combined;
+          });
         } else {
           setScanError("照片中找不到明顯的單字");
         }
@@ -173,13 +269,30 @@ const AddWord: React.FC<AddWordProps> = ({ onCancel, onSuccess }) => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const handleClearDetectedWords = () => {
+    setDetectedWords([]);
+    localStorage.removeItem(STORAGE_KEY_DETECTED_WORDS);
+  };
+
   const handleToggleDetectedWord = (word: string) => {
     if (queue.some(q => q.word.toLowerCase() === word.toLowerCase())) return;
     addToQueue(word);
   };
 
+  const handleAddAllDetectedWords = () => {
+    const wordsToAdd = detectedWords.filter(word => 
+      !queue.some(q => q.word.toLowerCase() === word.toLowerCase())
+    );
+    wordsToAdd.forEach(word => addToQueue(word));
+  };
+
   const handleCardUpdate = (updatedCard: Flashcard) => {
+     // 更新 previewItem
      setPreviewItem(prev => prev && prev.card?.id === updatedCard.id ? { ...prev, card: updatedCard } : prev);
+     // 同時更新 queue 中對應的項目
+     setQueue(prev => prev.map(item => 
+       item.card?.id === updatedCard.id ? { ...item, card: updatedCard } : item
+     ));
   };
 
   // Remove item or Retry
@@ -203,7 +316,15 @@ const AddWord: React.FC<AddWordProps> = ({ onCancel, onSuccess }) => {
         <button onClick={onCancel} className="p-3 text-slate-400 hover:bg-white hover:text-primary hover:shadow-md rounded-full transition-all">
           <Icons.Flip size={24} className="rotate-90" />
         </button>
-        <h2 className="text-2xl font-black text-slate-700 tracking-tight">製作新卡片</h2>
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-gradient-to-br from-primary to-purple-500 text-white rounded-2xl shadow-lg transform -rotate-2 border-2 border-white/50">
+            <Icons.Add size={20} />
+          </div>
+          <div>
+            <h2 className="text-2xl font-black text-dark tracking-tight">製作新卡片</h2>
+            <div className="h-1 bg-gradient-to-r from-primary/30 via-primary to-purple-500/30 rounded-full mt-1"></div>
+          </div>
+        </div>
         <div className="w-10"></div>
       </div>
 
@@ -214,7 +335,15 @@ const AddWord: React.FC<AddWordProps> = ({ onCancel, onSuccess }) => {
             
             {/* Input Form */}
             <div>
-                 <h1 className="text-2xl font-black text-dark mb-2">輸入英文單字</h1>
+                 <div className="flex items-center gap-2.5 mb-3">
+                   <div className="p-2 bg-sky-100 text-sky-600 rounded-xl">
+                     <Icons.Learn size={18} />
+                   </div>
+                   <div className="flex-1">
+                     <h1 className="text-xl font-black text-dark">輸入英文單字</h1>
+                     <div className="h-0.5 bg-gradient-to-r from-sky-400/40 to-transparent rounded-full mt-0.5"></div>
+                   </div>
+                 </div>
                  <form onSubmit={handleInputSubmit} className="flex gap-2">
                     <div className="flex-1 flex items-center bg-white border-4 border-slate-100 rounded-2xl focus-within:border-primary px-2 transition-colors">
                         <input
@@ -226,9 +355,9 @@ const AddWord: React.FC<AddWordProps> = ({ onCancel, onSuccess }) => {
                         autoFocus
                         />
                          <button
+                            ref={uploadButtonRef}
                             type="button" 
-                            onClick={() => fileInputRef.current?.click()}
-                            className="flex-none w-12 h-12 bg-slate-50 text-slate-400 rounded-xl hover:bg-sky-100 hover:text-sky-500 transition-all flex items-center justify-center mr-1"
+                            className="flex-none w-12 h-12 bg-slate-50 text-slate-400 rounded-xl hover:bg-sky-100 hover:text-sky-500 transition-all flex items-center justify-center mr-1 cursor-pointer"
                             title="拍照/上傳圖片"
                         >
                             <Icons.Camera size={24} />
@@ -242,12 +371,24 @@ const AddWord: React.FC<AddWordProps> = ({ onCancel, onSuccess }) => {
 
             {/* Scanned Words */}
             {detectedWords.length > 0 && (
-                <div className="bg-white p-4 rounded-2xl border-2 border-slate-100 max-h-40 overflow-y-auto custom-scrollbar">
-                   <p className="text-xs font-bold text-slate-400 mb-2 uppercase flex items-center justify-between">
-                     <span>點擊加入列表</span>
-                     <span className="bg-sky-100 text-sky-600 px-2 rounded-full text-[10px]">{detectedWords.length} 個發現</span>
-                   </p>
-                   <div className="flex flex-wrap gap-2">
+                <div className="bg-white p-4 rounded-2xl border-2 border-sky-100 max-h-60 overflow-y-auto custom-scrollbar shadow-sm">
+                   <div className="flex items-center justify-between mb-2">
+                     <p className="text-xs font-bold text-slate-400 uppercase flex items-center gap-2">
+                       <Icons.Camera size={12} />
+                       <span>點擊加入列表</span>
+                     </p>
+                     <div className="flex items-center gap-2">
+                       <span className="bg-sky-100 text-sky-600 px-2 rounded-full text-[10px] font-bold">{detectedWords.length} 個發現</span>
+                       <button
+                         onClick={handleClearDetectedWords}
+                         className="p-1 text-slate-300 hover:text-red-400 transition-colors"
+                         title="清除所有檢測到的單字"
+                       >
+                         <Icons.Plus size={14} className="rotate-45" />
+                       </button>
+                     </div>
+                   </div>
+                   <div className="flex flex-wrap gap-2 mb-2">
                      {detectedWords.map((word, idx) => {
                         const inQueue = queue.some(q => q.word.toLowerCase() === word.toLowerCase());
                         return (
@@ -256,14 +397,37 @@ const AddWord: React.FC<AddWordProps> = ({ onCancel, onSuccess }) => {
                                 onClick={() => handleToggleDetectedWord(word)}
                                 disabled={inQueue}
                                 className={`px-3 py-1 rounded-lg text-sm font-bold border-2 transition-all flex items-center gap-1
-                                   ${inQueue ? 'bg-slate-50 text-slate-300 border-slate-50 cursor-default' : 'bg-white border-slate-200 text-slate-600 hover:border-primary hover:text-primary'}
+                                   ${inQueue ? 'bg-green-50 text-green-600 border-green-200 cursor-default' : 'bg-white border-slate-200 text-slate-600 hover:border-primary hover:text-primary hover:shadow-sm'}
                                 `}
                             >
-                                {word} {inQueue && <Icons.Check size={12} />}
+                                {word} {inQueue && <Icons.Check size={12} className="text-green-600" />}
                             </button>
                         );
                      })}
                    </div>
+                   {(() => {
+                     const unaddedCount = detectedWords.filter(word => 
+                       !queue.some(q => q.word.toLowerCase() === word.toLowerCase())
+                     ).length;
+                     return unaddedCount > 0 ? (
+                       <button
+                         onClick={handleAddAllDetectedWords}
+                         className="w-full py-2 bg-sky-50 text-sky-600 rounded-lg text-xs font-bold border border-sky-200 hover:bg-sky-100 transition-colors flex items-center justify-center gap-1"
+                       >
+                         <Icons.Add size={12} />
+                         <span>一鍵加入全部 ({unaddedCount} 個)</span>
+                       </button>
+                     ) : (
+                       <div className="w-full py-2 bg-green-50 text-green-600 rounded-lg text-xs font-bold border border-green-200 flex items-center justify-center gap-1">
+                         <Icons.Check size={12} />
+                         <span>所有單字已加入隊列</span>
+                       </div>
+                     );
+                   })()}
+                   <p className="text-[10px] text-slate-400 mt-2 flex items-center gap-1">
+                     <Icons.Check size={10} />
+                     <span>已自動保存，頁面刷新後仍會保留</span>
+                   </p>
                 </div>
             )}
             {isScanning && (
@@ -363,22 +527,23 @@ const AddWord: React.FC<AddWordProps> = ({ onCancel, onSuccess }) => {
         </div>
 
         {/* Right: Preview Area */}
-        <div className="w-full lg:w-2/3 h-full flex flex-col bg-white/40 rounded-[3rem] border-4 border-dashed border-slate-200 p-4 lg:p-8 relative">
+        <div className="w-full lg:w-2/3 h-full flex flex-col items-center justify-center bg-white/40 rounded-[3rem] border-4 border-dashed border-slate-200 p-4 lg:p-6 relative">
             
             {previewItem?.status === 'SUCCESS' && previewItem.card ? (
-                 <div className="w-full h-full flex flex-col items-center animate-in zoom-in-95 duration-300">
-                    <div className="flex-1 w-full flex items-center justify-center overflow-y-auto custom-scrollbar mb-4 pt-4">
+                 <div className="w-full h-full flex items-center justify-center animate-in zoom-in-95 duration-300 relative">
+                    <div className="w-full h-full flex items-center justify-center min-h-0">
                         <FlashcardComponent 
                             card={previewItem.card} 
                             isFlipped={true}
                             onFlip={() => {}} 
                             onUpdateCard={handleCardUpdate}
                             allowEdit={true}
+                            isPreview={true}
                         />
                     </div>
-                    <div className="text-center text-secondary font-bold flex items-center gap-2 bg-green-50 px-4 py-2 rounded-full border border-green-100">
-                        <Icons.Check size={16} /> 
-                        <span>已自動儲存至單字庫</span>
+                    <div className="absolute top-4 right-4 text-secondary font-bold flex items-center gap-2 bg-green-50 px-3 py-1.5 rounded-full border border-green-100 shadow-sm z-10">
+                        <Icons.Check size={14} /> 
+                        <span className="text-xs">已自動儲存至單字庫</span>
                     </div>
                  </div>
             ) : previewItem?.status === 'ERROR' ? (

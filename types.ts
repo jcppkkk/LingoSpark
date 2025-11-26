@@ -25,6 +25,12 @@ export interface MnemonicOption {
   imagePrompt: string;
 }
 
+export enum CardStatus {
+  NORMAL = 'normal',           // 正常狀態
+  GENERATING = 'generating',   // 正在產生（新增單字時）
+  UPDATING = 'updating',       // 正在更新（重新產生圖片/記憶法時）
+}
+
 export interface Flashcard {
   id: string;
   word: string;
@@ -42,6 +48,10 @@ export interface Flashcard {
   // Sync Metadata
   updatedAt: number;
   isDeleted?: boolean;
+  
+  // Migration & Status
+  dataVersion?: number; // Migration version of the data structure
+  status?: CardStatus; // Current card status (for UI display)
 }
 
 export interface LearningStats {

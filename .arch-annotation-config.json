@@ -1,0 +1,84 @@
+{
+    "version": "1.0.0",
+    "enabled": true,
+    "mode": "progressive",
+    "strictMode": false,
+    "coverage": {
+        "target": 80,
+        "current": 0,
+        "components": {
+            "required": [
+                "Dashboard",
+                "WordLibrary",
+                "PracticeMode",
+                "FlashcardComponent"
+            ],
+            "optional": [
+                "AddWord",
+                "ErrorTest"
+            ]
+        }
+    },
+    "rules": {
+        "requireAnnotations": {
+            "newComponents": true,
+            "newFeatures": true,
+            "uiChanges": true,
+            "uxChanges": true
+        },
+        "annotationTypes": {
+            "UI": {
+                "required": true,
+                "description": "使用者介面元素（按鈕、表單、卡片等）"
+            },
+            "FEAT": {
+                "required": true,
+                "description": "功能特性（資料載入、處理邏輯等）"
+            },
+            "UX": {
+                "required": true,
+                "description": "使用者體驗流程（互動流程、狀態管理等）"
+            }
+        }
+    },
+    "phases": {
+        "phase1": {
+            "name": "試點階段",
+            "status": "active",
+            "components": [
+                "Dashboard"
+            ],
+            "strictness": "warning",
+            "description": "在 Dashboard 組件中試點，僅顯示警告"
+        },
+        "phase2": {
+            "name": "擴展階段",
+            "status": "pending",
+            "components": [
+                "Dashboard",
+                "WordLibrary",
+                "PracticeMode"
+            ],
+            "strictness": "warning",
+            "description": "擴展到主要組件，仍為警告模式"
+        },
+        "phase3": {
+            "name": "全面推廣",
+            "status": "pending",
+            "components": [
+                "*"
+            ],
+            "strictness": "error",
+            "description": "所有組件都需要註解，錯誤模式"
+        }
+    },
+    "exclusions": {
+        "files": [],
+        "patterns": [
+            "*.test.tsx",
+            "*.test.ts",
+            "*.spec.tsx",
+            "*.spec.ts"
+        ]
+    }
+}

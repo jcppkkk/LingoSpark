@@ -1,18 +1,35 @@
-import { Flashcard, LearningStats } from "../types";
+import { Flashcard, LearningStats, CardStatus } from "../types";
 import { DEFAULT_EFACTOR, DEFAULT_INTERVAL, DEFAULT_REPETITION } from "../constants";
 import { dbOps } from "./db";
 import { performSync } from "./syncService";
+import { migrateCards } from "./migrationService";
 
 // Now calls IndexedDB asynchronously
 
 export const getCards = async (): Promise<Flashcard[]> => {
-  return await dbOps.getAllCards();
+  const cards = await dbOps.getAllCards();
+  // Automatically migrate cards to latest version
+  const migratedCards = migrateCards(cards);
+  
+  // Save migrated cards back if any were updated
+  const needsSave = cards.some((card, index) => 
+    card.dataVersion !== migratedCards[index].dataVersion
+  );
+  
+  if (needsSave) {
+    // Save migrated cards in background (don't await)
+    Promise.all(migratedCards.map(card => dbOps.saveCard(card))).catch(console.error);
+  }
+  
+  return migratedCards;
 };
 
-export const saveCard = async (card: Flashcard): Promise<void> => {
+export const saveCard = async (card: Flashcard, clearStatus: boolean = true): Promise<void> => {
   const cardWithTimestamp = {
       ...card,
-      updatedAt: Date.now()
+      updatedAt: Date.now(),
+      // Clear status when saving (unless explicitly keeping it)
+      ...(clearStatus && card.status !== CardStatus.NORMAL ? { status: CardStatus.NORMAL } : {})
   };
   await dbOps.saveCard(cardWithTimestamp);
   
@@ -45,7 +62,7 @@ export const checkWordExists = async (word: string): Promise<boolean> => {
     return cards.some(c => c.word.toLowerCase() === word.toLowerCase());
 };
 
-export const createNewCard = (analysisData: any, imageUrl?: string): Flashcard => {
+export const createNewCard = (analysisData: any, imageUrl?: string, status: CardStatus = CardStatus.GENERATING): Flashcard => {
   return {
     id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(), // Fallback
     word: analysisData.word,
@@ -57,6 +74,8 @@ export const createNewCard = (analysisData: any, imageUrl?: string): Flashcard =
     repetition: DEFAULT_REPETITION,
     efactor: DEFAULT_EFACTOR,
     nextReviewDate: Date.now(),
+    dataVersion: 2, // Latest version
+    status: status,
   };
 };
 

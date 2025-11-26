@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# ARCHITECTURE 註解驗證
+echo "🔍 檢查 ARCHITECTURE 註解..."
+npm run arch:validate
+
+# 如果驗證失敗，阻止提交
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ 提交被阻止：請修復 ARCHITECTURE 註解問題"
+  echo "💡 提示：使用 --no-verify 可以跳過檢查（不建議）"
+  exit 1
+fi
+
+# 基礎架構檢查（可選，僅警告）
+echo "🔍 檢查 ARCHITECTURE.md 同步狀態..."
+npm run check-architecture:enhanced || true

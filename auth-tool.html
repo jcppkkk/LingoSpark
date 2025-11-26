@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com https://apis.google.com https://aistudiocdn.com; object-src 'none'; base-uri 'self';">
     <title>LingoSpark - OAuth 認證工具</title>
     <style>
         * {
@@ -192,7 +193,7 @@
         <div id="tokenDisplay" class="token-display hidden">
             <strong>Token 資訊：</strong><br><br>
             <div id="tokenContent"></div>
-            <button class="copy-btn" onclick="copyToken()">📋 複製 Token JSON</button>
+            <button class="copy-btn" onclick="copyToken(event)">📋 複製 Token JSON</button>
         </div>
         
         <div class="divider">
@@ -313,11 +314,20 @@
                     expires_in: token.expires_in,
                     scope: token.scope,
                     token_type: token.token_type,
+                    saved_at: Math.floor(Date.now() / 1000), // Save timestamp for expiration check
                     // Note: refresh_token might not be available in this flow
                 };
                 
+                // Save to localStorage for cross-page sharing
+                try {
+                    localStorage.setItem('google_drive_token', JSON.stringify(tokenData));
+                    console.log('Token 已保存到 localStorage');
+                } catch (e) {
+                    console.warn('無法保存 token 到 localStorage:', e);
+                }
+                
                 displayToken(tokenData);
-                updateStatus('✅ 認證成功！Token 已顯示', 'success');
+                updateStatus('✅ 認證成功！Token 已顯示並保存到 localStorage', 'success');
             } else {
                 updateStatus('❌ 無法取得 Token', 'error');
                 document.getElementById('authBtn').disabled = false;
@@ -339,7 +349,7 @@
             window.tokenData = tokenData; // Store globally for copy function
         }
         
-        function copyToken() {
+        function copyToken(event) {
             if (!window.tokenData) {
                 alert('沒有可複製的 Token');
                 return;
@@ -347,7 +357,12 @@
             
             const tokenJson = JSON.stringify(window.tokenData, null, 2);
             navigator.clipboard.writeText(tokenJson).then(() => {
-                const btn = event.target;
+                // Get button element from event or by querying
+                const btn = event ? event.target : document.querySelector('.copy-btn');
+                if (!btn) {
+                    alert('✅ 已複製！');
+                    return;
+                }
                 const originalText = btn.textContent;
                 btn.textContent = '✅ 已複製！';
                 btn.style.background = '#4caf50';
@@ -407,13 +422,25 @@
                     }
                 }
                 
-                // Set token using gapi
-                window.gapi.client.setToken({
+                // Prepare token object
+                const token = {
                     access_token: tokenData.access_token,
                     expires_in: tokenData.expires_in || 3600,
                     scope: tokenData.scope || SCOPES,
                     token_type: tokenData.token_type || 'Bearer',
-                });
+                    saved_at: Math.floor(Date.now() / 1000), // Save timestamp for expiration check
+                };
+                
+                // Set token using gapi
+                window.gapi.client.setToken(token);
+                
+                // Save to localStorage for cross-page sharing
+                try {
+                    localStorage.setItem('google_drive_token', JSON.stringify(token));
+                    console.log('Token 已保存到 localStorage');
+                } catch (e) {
+                    console.warn('無法保存 token 到 localStorage:', e);
+                }
                 
                 // Also try to call window.setGoogleToken if it exists (for main app)
                 if (typeof window.setGoogleToken === 'function') {

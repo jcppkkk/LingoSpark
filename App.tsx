@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { AppView } from './types';
 import Dashboard from './components/Dashboard';
 import AddWord from './components/AddWord';
+import WordLibrary from './components/WordLibrary';
 import PracticeMode from './components/PracticeMode';
-import ErrorTest from './components/ErrorTest';
+import { ENABLE_ERROR_TEST } from './constants';
 import { initSync } from './services/syncService';
+import ErrorTest from './components/ErrorTest';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.DASHBOARD);
@@ -20,7 +22,7 @@ const App: React.FC = () => {
         return <Dashboard onNavigate={setCurrentView} views={AppView} />;
       case AppView.ADD_WORD:
         return (
-          <AddWord 
+          <WordLibrary 
             onCancel={() => setCurrentView(AppView.DASHBOARD)}
             onSuccess={() => setCurrentView(AppView.DASHBOARD)}
           />
@@ -32,6 +34,10 @@ const App: React.FC = () => {
           />
         );
       case AppView.ERROR_TEST:
+        if (!ENABLE_ERROR_TEST) {
+          // Redirect to dashboard if error test is disabled
+          return <Dashboard onNavigate={setCurrentView} views={AppView} />;
+        }
         return (
           <ErrorTest 
             onBack={() => setCurrentView(AppView.DASHBOARD)}
