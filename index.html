@@ -4,68 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LingoSpark - 魔法單字卡</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              primary: '#6366f1', // Indigo 500
-              secondary: '#10b981', // Emerald 500
-              accent: '#f59e0b', // Amber 500
-              joy: '#FF6B6B', // Pastel Red
-              fun: '#4ECDC4', // Pastel Teal
-              sky: '#45B7D1', // Pastel Blue
-              sunny: '#FFE66D', // Pastel Yellow
-              paper: '#F7FFF7', // Off white
-              dark: '#2d3436',
-            },
-            fontFamily: {
-              sans: ['"Zen Maru Gothic"', 'Inter', 'system-ui', 'sans-serif'],
-            },
-            borderRadius: {
-              '4xl': '2rem',
-              '5xl': '2.5rem',
-            }
-          },
-        },
-      };
-    </script>
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;700;900&display=swap');
-
-      body {
-        font-family: 'Zen Maru Gothic', sans-serif;
-        background-color: #f0f4f8;
-        background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
-        background-size: 20px 20px;
-      }
-      
-      /* Custom flip animation */
-      .perspective-1000 {
-        perspective: 1000px;
-      }
-      .transform-style-3d {
-        transform-style: preserve-3d;
-      }
-      .backface-hidden {
-        backface-visibility: hidden;
-      }
-      .rotate-y-180 {
-        transform: rotateY(180deg);
-      }
-      
-      .custom-scrollbar::-webkit-scrollbar {
-        width: 6px;
-      }
-      .custom-scrollbar::-webkit-scrollbar-track {
-        background: rgba(0,0,0,0.05);
-      }
-      .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: rgba(0,0,0,0.2);
-        border-radius: 10px;
-      }
-    </style>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <script type="importmap">
 {
   "imports": {
@@ -80,7 +19,6 @@
 <!-- Google Identity Services for Drive API -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://apis.google.com/js/api.js" async defer></script>
-<link rel="stylesheet" href="/index.css">
 </head>
   <body>
     <div id="root"></div>

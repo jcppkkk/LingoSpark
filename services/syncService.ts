@@ -80,7 +80,54 @@ export const performSync = async (isManual = false) => {
     } else {
         // Download remote
         const remoteContent: any = await driveOps.getFileContent(backupFile.id);
-        const remoteCards = JSON.parse(remoteContent).cards || [];
+        
+        // Validate and parse remote content
+        let remoteCards: any[] = [];
+        try {
+            // Ensure remoteContent is a string
+            const contentString = typeof remoteContent === 'string' 
+                ? remoteContent 
+                : JSON.stringify(remoteContent);
+            
+            // Check if content is empty or whitespace
+            if (!contentString || !contentString.trim()) {
+                console.warn("[Sync] Remote file is empty, treating as new file");
+            } else {
+                // Check if this is old multipart format (starts with boundary marker)
+                if (contentString.trim().startsWith('------WebKitFormBoundary') || 
+                    contentString.trim().startsWith('--') && contentString.includes('Content-Disposition')) {
+                    console.warn("[Sync] Detected old multipart format file. Deleting and recreating...");
+                    await driveOps.deleteFile(backupFile.id);
+                    // Recreate with correct format
+                    await driveOps.createFile('lingospark_cards.json', JSON.stringify(localData));
+                    console.log("[Sync] Recreated file with correct format");
+                    return; // Exit early, file is now recreated with local data
+                }
+                
+                const parsed = JSON.parse(contentString);
+                remoteCards = parsed?.cards || [];
+                console.log(`[Sync] Loaded ${remoteCards.length} cards from Drive`);
+            }
+        } catch (parseError: any) {
+            // Check if this might be old multipart format
+            const contentString = typeof remoteContent === 'string' 
+                ? remoteContent 
+                : String(remoteContent);
+            
+            if (contentString.includes('WebKitFormBoundary') || 
+                (contentString.includes('Content-Disposition') && contentString.includes('form-data'))) {
+                console.warn("[Sync] Detected old multipart format file. Deleting and recreating...");
+                await driveOps.deleteFile(backupFile.id);
+                // Recreate with correct format
+                await driveOps.createFile('lingospark_cards.json', JSON.stringify(localData));
+                console.log("[Sync] Recreated file with correct format");
+                return; // Exit early, file is now recreated with local data
+            }
+            
+            console.error("[Sync] Failed to parse remote file content:", parseError);
+            console.error("[Sync] Remote content preview:", contentString.substring(0, 100));
+            throw new Error(`無法解析遠端檔案內容: ${parseError.message}`);
+        }
         
         // Merge: Add remote cards that don't exist locally
         // (A better way is to compare updatedAt timestamps)
@@ -89,7 +136,7 @@ export const performSync = async (isManual = false) => {
         
         if (newRemoteCards.length > 0) {
             await dbOps.importDataFromSync(newRemoteCards);
-            console.log(`Imported ${newRemoteCards.length} cards from Drive`);
+            console.log(`[Sync] Imported ${newRemoteCards.length} cards from Drive`);
         }
 
         // Upload updated local back to drive

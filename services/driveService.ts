@@ -4,6 +4,7 @@ declare global {
   interface Window {
     gapi: any;
     google: any;
+    setGoogleToken?: (tokenData: any) => void;
   }
 }
 
@@ -108,6 +109,10 @@ export const authenticate = async (): Promise<void> => {
              reject(new Error(`OAuth 設定錯誤：請在 Google Cloud Console 的 OAuth Client 設定中添加 "${window.location.origin}" 到 Authorized JavaScript origins`));
         } else if (resp.error === 'popup_closed_by_user') {
              reject(new Error("認證視窗被關閉。請重新嘗試並完成認證流程。"));
+        } else if (resp.error === 'access_denied' || resp.error_description?.includes('安全疑慮') || resp.error_description?.includes('security') || resp.error_description?.includes('browser')) {
+             // Google security warning for automated browsers
+             console.error("[OAuth Error] Google 檢測到自動化瀏覽器，拒絕認證");
+             reject(new Error("⚠️ 自動化測試環境限制\n\nGoogle 安全政策會阻擋自動化瀏覽器進行 OAuth 認證。\n\n📌 重要說明：\n• 自動化瀏覽器和真實瀏覽器的資料存儲是分開的\n• 即使在一邊完成認證，另一邊也無法使用\n• Token 和應用資料（IndexedDB）都基於瀏覽器環境存儲\n\n✅ 建議：\n在真實瀏覽器（Chrome/Firefox/Safari）中進行完整測試，包括：\n1. OAuth 認證\n2. 雲端備份功能\n3. 資料同步\n\n這是在自動化測試環境中的已知限制。"));
         } else {
              console.error("[OAuth Error]", resp);
              reject(new Error(`OAuth 認證失敗: ${resp.error_description || resp.error}`));
@@ -136,6 +141,51 @@ export const authenticate = async (): Promise<void> => {
   });
 };
 
+// Helper function to manually set token (for testing/automation)
+export const setTokenManually = async (tokenData: {
+  access_token: string;
+  expires_in?: number;
+  scope?: string;
+  token_type?: string;
+}): Promise<void> => {
+  // Wait for gapi to be initialized if not ready
+  if (!window.gapi || !window.gapi.client) {
+    console.log("[Drive] 等待 Google API 初始化...");
+    let attempts = 0;
+    while ((!window.gapi || !window.gapi.client) && attempts < 20) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      attempts++;
+    }
+    
+    if (!window.gapi || !window.gapi.client) {
+      throw new Error("Google API 初始化超時。請確保已調用 initGoogleDrive() 或等待應用載入完成。");
+    }
+  }
+  
+  // Set the token in gapi client
+  window.gapi.client.setToken({
+    access_token: tokenData.access_token,
+    expires_in: tokenData.expires_in || 3600,
+    scope: tokenData.scope || GOOGLE_DRIVE_SCOPES,
+    token_type: tokenData.token_type || 'Bearer',
+  });
+  
+  console.log("[Drive] ✅ Token 已手動設置");
+};
+
+// Expose setTokenManually to window for easy access in browser console
+if (typeof window !== 'undefined') {
+  window.setGoogleToken = async (tokenData: any) => {
+    try {
+      await setTokenManually(tokenData);
+      console.log("✅ Token 設置成功！現在可以進行雲端備份了。");
+    } catch (error: any) {
+      console.error("❌ Token 設置失敗:", error.message);
+      console.error("提示：請確保應用已完全載入，或先執行 initGoogleDrive()");
+    }
+  };
+}
+
 // 3. File Operations in AppData
 export const driveOps = {
   async listFiles() {
@@ -148,43 +198,84 @@ export const driveOps = {
   },
 
   async createFile(name: string, content: string, mimeType = 'application/json') {
+    const accessToken = window.gapi.client.getToken().access_token;
+    
+    // Step 1: Create file metadata
     const fileMetadata = {
       'name': name,
       'parents': ['appDataFolder']
     };
     
-    const form = new FormData();
-    form.append('metadata', new Blob([JSON.stringify(fileMetadata)], { type: 'application/json' }));
-    form.append('file', new Blob([content], { type: mimeType }));
-
-    const accessToken = window.gapi.client.getToken().access_token;
-    
-    await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+    const createResponse = await fetch('https://www.googleapis.com/drive/v3/files', {
       method: 'POST',
-      headers: new Headers({ 'Authorization': 'Bearer ' + accessToken }),
-      body: form
+      headers: new Headers({ 
+        'Authorization': 'Bearer ' + accessToken,
+        'Content-Type': 'application/json'
+      }),
+      body: JSON.stringify(fileMetadata)
     });
+    
+    const createdFile = await createResponse.json();
+    const fileId = createdFile.id;
+    
+    // Step 2: Upload file content using media upload
+    await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+      method: 'PATCH',
+      headers: new Headers({ 
+        'Authorization': 'Bearer ' + accessToken,
+        'Content-Type': mimeType
+      }),
+      body: content
+    });
+    
+    return fileId;
   },
 
   async updateFile(fileId: string, content: string, mimeType = 'application/json') {
-     const form = new FormData();
-    // Only update content
-    form.append('file', new Blob([content], { type: mimeType }));
-
     const accessToken = window.gapi.client.getToken().access_token;
     
+    // Update file content directly (not using FormData)
     await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
       method: 'PATCH',
-      headers: new Headers({ 'Authorization': 'Bearer ' + accessToken }),
-      body: form
+      headers: new Headers({ 
+        'Authorization': 'Bearer ' + accessToken,
+        'Content-Type': mimeType
+      }),
+      body: content
     });
   },
 
-  async getFileContent(fileId: string) {
-    const response = await window.gapi.client.drive.files.get({
-      fileId: fileId,
-      alt: 'media'
-    });
-    return response.body;
+  async getFileContent(fileId: string): Promise<string> {
+    try {
+      const response = await window.gapi.client.drive.files.get({
+        fileId: fileId,
+        alt: 'media'
+      });
+      
+      // Ensure we return a string
+      if (typeof response.body === 'string') {
+        return response.body;
+      } else if (response.body) {
+        // If it's already an object, stringify it
+        return JSON.stringify(response.body);
+      } else {
+        // Empty file
+        return '';
+      }
+    } catch (error: any) {
+      console.error("[Drive] Failed to get file content:", error);
+      throw new Error(`無法讀取檔案內容: ${error.message || '未知錯誤'}`);
+    }
+  },
+
+  async deleteFile(fileId: string): Promise<void> {
+    try {
+      await window.gapi.client.drive.files.delete({
+        fileId: fileId
+      });
+    } catch (error: any) {
+      console.error("[Drive] Failed to delete file:", error);
+      throw new Error(`無法刪除檔案: ${error.message || '未知錯誤'}`);
+    }
   }
 };

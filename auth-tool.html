@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LingoSpark - OAuth 認證工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .status.info {
+            background: #e3f2fd;
+            color: #1976d2;
+            border: 1px solid #90caf9;
+        }
+        .status.success {
+            background: #e8f5e9;
+            color: #388e3c;
+            border: 1px solid #81c784;
+        }
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ef5350;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .token-display {
+            background: #f5f5f5;
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .token-display.hidden {
+            display: none;
+        }
+        .copy-btn {
+            background: #4caf50;
+            margin-top: 10px;
+        }
+        .copy-btn:hover {
+            background: #45a049;
+        }
+        .divider {
+            margin: 30px 0;
+            text-align: center;
+            position: relative;
+        }
+        .divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #ddd;
+        }
+        .divider span {
+            background: white;
+            padding: 0 15px;
+            position: relative;
+            color: #999;
+            font-size: 12px;
+        }
+        .token-input-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #f0f0f0;
+        }
+        textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            resize: vertical;
+            margin-bottom: 10px;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .set-token-btn {
+            background: #ff9800;
+        }
+        .set-token-btn:hover {
+            background: #f57c00;
+        }
+        .instructions {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 13px;
+            color: #856404;
+        }
+        .instructions ol {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+        .instructions li {
+            margin-bottom: 8px;
+        }
+        code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+    </style>
+    <!-- Google Identity Services for Drive API -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js" async defer></script>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 OAuth 認證工具</h1>
+        <p class="subtitle">用於在真實瀏覽器中完成認證並取得 Token</p>
+        
+        <div id="status" class="status info">
+            ⏳ 正在初始化 Google API...
+        </div>
+        
+        <button id="authBtn" onclick="startAuth()" disabled>開始認證</button>
+        
+        <div id="tokenDisplay" class="token-display hidden">
+            <strong>Token 資訊：</strong><br><br>
+            <div id="tokenContent"></div>
+            <button class="copy-btn" onclick="copyToken()">📋 複製 Token JSON</button>
+        </div>
+        
+        <div class="divider">
+            <span>或</span>
+        </div>
+        
+        <div class="token-input-section">
+            <h2 style="font-size: 18px; margin-bottom: 15px; color: #333;">🔑 手動輸入 Token（用於自動化測試）</h2>
+            <p style="font-size: 13px; color: #666; margin-bottom: 10px;">
+                如果你已經從其他地方取得 Token JSON，可以在此貼上並設置：
+            </p>
+            <textarea id="tokenInput" placeholder='貼上 Token JSON，例如：&#10;{&#10;  "access_token": "ya29.a0AfH6...",&#10;  "expires_in": 3600,&#10;  "scope": "https://www.googleapis.com/auth/drive.appdata",&#10;  "token_type": "Bearer"&#10;}'></textarea>
+            <button class="set-token-btn" onclick="setTokenFromInput()">✅ 設置 Token</button>
+            <div id="setTokenStatus" style="margin-top: 10px; display: none;"></div>
+        </div>
+        
+        <div class="instructions">
+            <strong>📋 使用說明：</strong>
+            <p style="margin-bottom: 10px; font-weight: bold;">方式一：在此頁面完成認證</p>
+            <ol>
+                <li>點擊「開始認證」按鈕</li>
+                <li>在彈出視窗中完成 Google 帳號登入</li>
+                <li>授權應用程式存取 Google Drive</li>
+                <li>認證成功後，Token 會顯示在上方</li>
+                <li>點擊「複製 Token JSON」按鈕複製完整 Token</li>
+            </ol>
+            <p style="margin: 15px 0 10px 0; font-weight: bold;">方式二：手動輸入 Token（用於自動化測試）</p>
+            <ol>
+                <li>如果你已經從其他地方取得 Token JSON</li>
+                <li>在「手動輸入 Token」區域貼上 Token JSON</li>
+                <li>點擊「設置 Token」按鈕</li>
+                <li>設置成功後，即可在此頁面或主應用中使用雲端備份功能</li>
+            </ol>
+            <p style="margin-top: 10px; font-weight: bold; color: #d32f2f;">
+                ⚠️ 注意：Token 有時效性（通常 1 小時），過期後需要重新認證
+            </p>
+            <p style="margin-top: 10px; font-size: 12px; color: #666;">
+                💡 提示：設置 Token 後，可以在主應用（http://localhost:3000）中使用雲端備份功能，或在此頁面測試 API 調用。
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const CLIENT_ID = "885392911088-ibmq2i05lfk0ih49nv4p8lgc4g36kvlt.apps.googleusercontent.com";
+        const SCOPES = "https://www.googleapis.com/auth/drive.appdata";
+        
+        let tokenClient;
+        let gapiInited = false;
+        let gisInited = false;
+        
+        function updateStatus(message, type = 'info') {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+        }
+        
+        function checkInit() {
+            if (window.gapi && window.google) {
+                initGapi();
+            } else {
+                setTimeout(checkInit, 500);
+            }
+        }
+        
+        async function initGapi() {
+            try {
+                await window.gapi.load('client', async () => {
+                    await window.gapi.client.init({
+                        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+                    });
+                    gapiInited = true;
+                    maybeEnableAuth();
+                });
+                
+                tokenClient = window.google.accounts.oauth2.initTokenClient({
+                    client_id: CLIENT_ID,
+                    scope: SCOPES,
+                    callback: handleAuthResponse,
+                });
+                gisInited = true;
+                maybeEnableAuth();
+            } catch (error) {
+                updateStatus('❌ 初始化失敗: ' + error.message, 'error');
+            }
+        }
+        
+        function maybeEnableAuth() {
+            if (gapiInited && gisInited) {
+                updateStatus('✅ 初始化完成，可以開始認證', 'success');
+                document.getElementById('authBtn').disabled = false;
+            }
+        }
+        
+        function startAuth() {
+            updateStatus('⏳ 正在開啟認證視窗...', 'info');
+            document.getElementById('authBtn').disabled = true;
+            
+            // Check if we already have a token
+            const token = window.gapi.client.getToken();
+            if (token === null) {
+                tokenClient.requestAccessToken({ prompt: 'consent' });
+            } else {
+                handleAuthResponse({});
+            }
+        }
+        
+        function handleAuthResponse(response) {
+            if (response.error) {
+                updateStatus('❌ 認證失敗: ' + (response.error_description || response.error), 'error');
+                document.getElementById('authBtn').disabled = false;
+                return;
+            }
+            
+            const token = window.gapi.client.getToken();
+            if (token && token.access_token) {
+                const tokenData = {
+                    access_token: token.access_token,
+                    expires_in: token.expires_in,
+                    scope: token.scope,
+                    token_type: token.token_type,
+                    // Note: refresh_token might not be available in this flow
+                };
+                
+                displayToken(tokenData);
+                updateStatus('✅ 認證成功！Token 已顯示', 'success');
+            } else {
+                updateStatus('❌ 無法取得 Token', 'error');
+                document.getElementById('authBtn').disabled = false;
+            }
+        }
+        
+        function displayToken(tokenData) {
+            const tokenDisplay = document.getElementById('tokenDisplay');
+            const tokenContent = document.getElementById('tokenContent');
+            
+            tokenContent.innerHTML = `
+                <strong>Access Token:</strong><br>
+                <code style="font-size: 10px;">${tokenData.access_token.substring(0, 50)}...</code><br><br>
+                <strong>完整 Token JSON:</strong><br>
+                <pre style="background: white; padding: 10px; border-radius: 5px; margin-top: 10px;">${JSON.stringify(tokenData, null, 2)}</pre>
+            `;
+            
+            tokenDisplay.classList.remove('hidden');
+            window.tokenData = tokenData; // Store globally for copy function
+        }
+        
+        function copyToken() {
+            if (!window.tokenData) {
+                alert('沒有可複製的 Token');
+                return;
+            }
+            
+            const tokenJson = JSON.stringify(window.tokenData, null, 2);
+            navigator.clipboard.writeText(tokenJson).then(() => {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✅ 已複製！';
+                btn.style.background = '#4caf50';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '#4caf50';
+                }, 2000);
+            }).catch(err => {
+                alert('複製失敗: ' + err.message);
+            });
+        }
+        
+        async function setTokenFromInput() {
+            const tokenInput = document.getElementById('tokenInput');
+            const statusEl = document.getElementById('setTokenStatus');
+            const tokenText = tokenInput.value.trim();
+            
+            if (!tokenText) {
+                statusEl.className = 'status error';
+                statusEl.textContent = '❌ 請輸入 Token JSON';
+                statusEl.style.display = 'block';
+                return;
+            }
+            
+            let tokenData;
+            try {
+                tokenData = JSON.parse(tokenText);
+            } catch (error) {
+                statusEl.className = 'status error';
+                statusEl.textContent = '❌ Token JSON 格式錯誤: ' + error.message;
+                statusEl.style.display = 'block';
+                return;
+            }
+            
+            if (!tokenData.access_token) {
+                statusEl.className = 'status error';
+                statusEl.textContent = '❌ Token JSON 缺少 access_token 欄位';
+                statusEl.style.display = 'block';
+                return;
+            }
+            
+            statusEl.className = 'status info';
+            statusEl.textContent = '⏳ 正在設置 Token...';
+            statusEl.style.display = 'block';
+            
+            try {
+                // Wait for gapi to be ready
+                if (!window.gapi || !window.gapi.client) {
+                    let attempts = 0;
+                    while ((!window.gapi || !window.gapi.client) && attempts < 20) {
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        attempts++;
+                    }
+                    
+                    if (!window.gapi || !window.gapi.client) {
+                        throw new Error('Google API 尚未初始化，請稍候再試');
+                    }
+                }
+                
+                // Set token using gapi
+                window.gapi.client.setToken({
+                    access_token: tokenData.access_token,
+                    expires_in: tokenData.expires_in || 3600,
+                    scope: tokenData.scope || SCOPES,
+                    token_type: tokenData.token_type || 'Bearer',
+                });
+                
+                // Also try to call window.setGoogleToken if it exists (for main app)
+                if (typeof window.setGoogleToken === 'function') {
+                    await window.setGoogleToken(tokenData);
+                }
+                
+                statusEl.className = 'status success';
+                statusEl.textContent = '✅ Token 設置成功！現在可以進行雲端備份了。';
+                
+                // Also display the token in the display area
+                displayToken(tokenData);
+                updateStatus('✅ Token 已手動設置並可用', 'success');
+                
+            } catch (error) {
+                statusEl.className = 'status error';
+                statusEl.textContent = '❌ 設置失敗: ' + error.message;
+            }
+        }
+        
+        // Start initialization
+        checkInit();
+    </script>
+</body>
+</html>
+
