@@ -34,6 +34,7 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
   const [selectedCard, setSelectedCard] = useState<Flashcard | null>(null);
   const [isLoadingLibrary, setIsLoadingLibrary] = useState(true);
   const [filterStatus, setFilterStatus] = useState<'all' | 'due' | 'learned'>('all');
+  const [sortBy, setSortBy] = useState<'a-z' | 'date' | 'proficiency'>('a-z');
   
   // Create Card State (from AddWord)
   const [input, setInput] = useState('');
@@ -47,11 +48,14 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
   const [isScanning, setIsScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
 
+  // @ARCH:START WordLibrary - FEAT: 載入單字庫
   // Load library cards
   useEffect(() => {
     loadLibraryCards();
   }, []);
+  // @ARCH:END WordLibrary - FEAT: 載入單字庫
 
+  // @ARCH:START WordLibrary - FEAT: 處理佇列邏輯
   // Queue Processing Logic
   useEffect(() => {
     const processQueue = async () => {
@@ -68,6 +72,7 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
 
     processQueue();
   }, [queue]);
+  // @ARCH:END WordLibrary - FEAT: 處理佇列邏輯
 
   // Restore saved detected words and queue
   useEffect(() => {
@@ -344,6 +349,36 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
     return true;
   });
 
+  // Sort filtered cards
+  const sortedCards = [...filteredCards].sort((a, b) => {
+    switch (sortBy) {
+      case 'a-z':
+        return a.word.toLowerCase().localeCompare(b.word.toLowerCase(), 'en');
+      
+      case 'date':
+        // 最新的在前
+        return b.createdAt - a.createdAt;
+      
+      case 'proficiency':
+        // 熟練度計算：repetition * efactor，高的在前
+        // 如果 repetition 相同，則比較 efactor
+        const proficiencyA = a.repetition * a.efactor;
+        const proficiencyB = b.repetition * b.efactor;
+        if (proficiencyA !== proficiencyB) {
+          return proficiencyB - proficiencyA;
+        }
+        // 如果熟練度相同，則按 repetition 排序
+        if (a.repetition !== b.repetition) {
+          return b.repetition - a.repetition;
+        }
+        // 如果 repetition 也相同，則按 efactor 排序
+        return b.efactor - a.efactor;
+      
+      default:
+        return 0;
+    }
+  });
+
   return (
     <div className="max-w-7xl mx-auto h-full flex flex-col p-6 animate-in fade-in duration-300">
       
@@ -409,9 +444,10 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
           <div className="h-full flex gap-6">
             {/* Left: Card List */}
             <div className="w-1/3 flex flex-col gap-4 h-full">
-              {/* Search and Filter */}
-              <div className="flex gap-2">
-                <div className="flex-1 relative">
+              {/* Search, Filter and Sort */}
+              <div className="flex flex-col gap-2">
+                {/* Search Bar */}
+                <div className="relative">
                   <Icons.Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
@@ -421,17 +457,32 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
                     className="w-full pl-10 pr-4 py-3 bg-white border-2 border-slate-100 rounded-xl focus:border-primary outline-none font-medium"
                   />
                 </div>
-                <div className="relative">
-                  <select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value as 'all' | 'due' | 'learned')}
-                    className="appearance-none bg-white border-2 border-slate-100 rounded-xl px-4 py-3 pr-8 font-bold text-slate-600 focus:border-primary outline-none cursor-pointer"
-                  >
-                    <option value="all">全部</option>
-                    <option value="due">待複習</option>
-                    <option value="learned">已學會</option>
-                  </select>
-                  <Filter size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                {/* Filter and Sort */}
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <select
+                      value={filterStatus}
+                      onChange={(e) => setFilterStatus(e.target.value as 'all' | 'due' | 'learned')}
+                      className="appearance-none bg-white border-2 border-slate-100 rounded-xl px-4 py-3 pr-8 font-bold text-slate-600 focus:border-primary outline-none cursor-pointer w-full"
+                    >
+                      <option value="all">全部</option>
+                      <option value="due">待複習</option>
+                      <option value="learned">已學會</option>
+                    </select>
+                    <Filter size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
+                  <div className="relative flex-1">
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as 'a-z' | 'date' | 'proficiency')}
+                      className="appearance-none bg-white border-2 border-slate-100 rounded-xl px-4 py-3 pr-8 font-bold text-slate-600 focus:border-primary outline-none cursor-pointer w-full"
+                    >
+                      <option value="a-z">A-Z</option>
+                      <option value="date">新增日期</option>
+                      <option value="proficiency">熟練度</option>
+                    </select>
+                    <Icons.Time size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
                 </div>
               </div>
 
@@ -441,14 +492,14 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
                   <div className="h-full flex items-center justify-center text-slate-300">
                     <Icons.Learn size={32} className="animate-pulse" />
                   </div>
-                ) : filteredCards.length === 0 ? (
+                ) : sortedCards.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-slate-300">
                     <Icons.Book size={48} className="mb-3 opacity-50" />
                     <p className="font-bold">沒有找到單字</p>
                     <p className="text-sm mt-1">試試調整搜尋條件</p>
                   </div>
                 ) : (
-                  filteredCards.map(card => (
+                  sortedCards.map(card => (
                     <div
                       key={card.id}
                       onClick={() => setSelectedCard(card)}
