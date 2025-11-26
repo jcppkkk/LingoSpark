@@ -92,24 +92,45 @@ export const authenticate = async (): Promise<void> => {
       return reject(new Error("Google Drive Client not initialized. Check your Client ID configuration."));
     }
 
+    // 設定超時機制（5分鐘）
+    const timeoutId = setTimeout(() => {
+      reject(new Error("OAuth 認證超時。請確認：\n1. 彈出視窗未被阻擋\n2. 已在 Google Cloud Console 設定正確的 Authorized JavaScript origins\n3. 如果使用 Cursor IDE，請嘗試在外部瀏覽器中開啟應用"));
+    }, 300000); // 5分鐘超時
+
     // Override the callback for this specific request
     tokenClient.callback = async (resp: any) => {
+      clearTimeout(timeoutId);
+      
       if (resp.error) {
         // Detailed error logging for common OAuth mismatch
         if (resp.error === 'invalid_request' && resp.error_description?.includes('redirect_uri')) {
              console.error(`[OAuth Error] Origin Mismatch! Go to Cloud Console > Credentials > OAuth Client. Add URI: ${window.location.origin}`);
+             reject(new Error(`OAuth 設定錯誤：請在 Google Cloud Console 的 OAuth Client 設定中添加 "${window.location.origin}" 到 Authorized JavaScript origins`));
+        } else if (resp.error === 'popup_closed_by_user') {
+             reject(new Error("認證視窗被關閉。請重新嘗試並完成認證流程。"));
+        } else {
+             console.error("[OAuth Error]", resp);
+             reject(new Error(`OAuth 認證失敗: ${resp.error_description || resp.error}`));
         }
-        reject(resp);
       } else {
-        resolve(resp);
+        // 驗證 token 是否正確設定
+        const token = window.gapi.client.getToken();
+        if (token && token.access_token) {
+          console.log("[OAuth] 認證成功");
+          resolve(resp);
+        } else {
+          reject(new Error("認證完成但無法取得 access token，請重新嘗試"));
+        }
       }
     };
     
     // Check if we have a valid token
     const token = window.gapi.client.getToken();
     if (token === null) {
+      console.log("[OAuth] 開始認證流程（需要用戶同意）");
       tokenClient.requestAccessToken({ prompt: 'consent' });
     } else {
+      console.log("[OAuth] 使用現有 token（靜默認證）");
       tokenClient.requestAccessToken({ prompt: '' });
     }
   });
