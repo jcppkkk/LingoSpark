@@ -1,0 +1,5 @@
+{
+  "name": "LingoSpark - AI Phonics & Memory",
+  "description": "An intelligent vocabulary flashcard app using Gemini AI for phonics breakdown, etymology analysis, mnemonic image generation, and spaced repetition learning.",
+  "requestFramePermissions": []
+}

@@ -1,0 +1,150 @@
+/**
+ * IndexedDB Wrapper
+ * Acts as the "Local SQLite" for the application.
+ * Stores structured data (Cards) and binary data (Images) separately.
+ */
+
+const DB_NAME = 'LingoSparkDB';
+const DB_VERSION = 1;
+const STORE_CARDS = 'cards';
+const STORE_IMAGES = 'images'; // To keep the main store light, images are separate
+
+let dbInstance: IDBDatabase | null = null;
+
+export const initDB = (): Promise<IDBDatabase> => {
+  return new Promise((resolve, reject) => {
+    if (dbInstance) {
+      resolve(dbInstance);
+      return;
+    }
+
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onerror = (event) => {
+      console.error("Database error", event);
+      reject("Database error");
+    };
+
+    request.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+      
+      // Cards Store: Key is UUID
+      if (!db.objectStoreNames.contains(STORE_CARDS)) {
+        db.createObjectStore(STORE_CARDS, { keyPath: 'id' });
+      }
+
+      // Images Store: Key is Card UUID
+      if (!db.objectStoreNames.contains(STORE_IMAGES)) {
+        db.createObjectStore(STORE_IMAGES); // Out-of-line keys
+      }
+    };
+
+    request.onsuccess = (event) => {
+      dbInstance = (event.target as IDBOpenDBRequest).result;
+      resolve(dbInstance);
+    };
+  });
+};
+
+export const dbOps = {
+  async getAllCards(): Promise<any[]> {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_CARDS, STORE_IMAGES], 'readonly');
+      const store = transaction.objectStore(STORE_CARDS);
+      const imageStore = transaction.objectStore(STORE_IMAGES);
+      
+      const request = store.getAll();
+
+      request.onsuccess = async () => {
+        const cards = request.result;
+        // Re-attach images lazily or immediately? 
+        // For performance in 'List' views, we might not want images. 
+        // But for this app, we attach them.
+        
+        // This part could be optimized to lazy load images.
+        // For now, we load them to maintain API compatibility.
+        const cardsWithImages = await Promise.all(cards.map(async (card) => {
+           const imgReq = imageStore.get(card.id);
+           const imgData: string | undefined = await new Promise(res => {
+             imgReq.onsuccess = () => res(imgReq.result);
+             imgReq.onerror = () => res(undefined);
+           });
+           return { ...card, imageUrl: imgData };
+        }));
+
+        resolve(cardsWithImages);
+      };
+      request.onerror = () => reject(request.error);
+    });
+  },
+
+  async saveCard(card: any): Promise<void> {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_CARDS, STORE_IMAGES], 'readwrite');
+      
+      const cardStore = transaction.objectStore(STORE_CARDS);
+      const imageStore = transaction.objectStore(STORE_IMAGES);
+
+      // Separate image data
+      const { imageUrl, ...cardData } = card;
+
+      cardStore.put(cardData);
+      
+      if (imageUrl) {
+        imageStore.put(imageUrl, card.id);
+      }
+
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+  },
+
+  async deleteCard(id: string): Promise<void> {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_CARDS, STORE_IMAGES], 'readwrite');
+      transaction.objectStore(STORE_CARDS).delete(id);
+      transaction.objectStore(STORE_IMAGES).delete(id);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+  },
+
+  async getCardImage(id: string): Promise<string | undefined> {
+    const db = await initDB();
+    return new Promise((resolve) => {
+      const transaction = db.transaction([STORE_IMAGES], 'readonly');
+      const req = transaction.objectStore(STORE_IMAGES).get(id);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(undefined);
+    });
+  },
+
+  // Export all data for Sync (JSON format)
+  async exportDataForSync(): Promise<{cards: any[]}> {
+    const db = await initDB();
+    return new Promise((resolve) => {
+      const transaction = db.transaction([STORE_CARDS], 'readonly');
+      const req = transaction.objectStore(STORE_CARDS).getAll();
+      req.onsuccess = () => resolve({ cards: req.result });
+    });
+  },
+
+  // Import data from Sync
+  async importDataFromSync(cards: any[]): Promise<void> {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_CARDS], 'readwrite');
+      const store = transaction.objectStore(STORE_CARDS);
+      
+      cards.forEach(card => {
+        store.put(card);
+      });
+
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+  }
+};
