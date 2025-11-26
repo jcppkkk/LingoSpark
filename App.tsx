@@ -3,6 +3,7 @@ import { AppView } from './types';
 import Dashboard from './components/Dashboard';
 import AddWord from './components/AddWord';
 import PracticeMode from './components/PracticeMode';
+import ErrorTest from './components/ErrorTest';
 import { initSync } from './services/syncService';
 
 const App: React.FC = () => {
@@ -28,6 +29,12 @@ const App: React.FC = () => {
         return (
           <PracticeMode 
             onFinish={() => setCurrentView(AppView.DASHBOARD)}
+          />
+        );
+      case AppView.ERROR_TEST:
+        return (
+          <ErrorTest 
+            onBack={() => setCurrentView(AppView.DASHBOARD)}
           />
         );
       default:

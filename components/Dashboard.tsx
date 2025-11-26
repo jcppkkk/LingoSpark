@@ -84,26 +84,32 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, views }) => {
             <div className="flex items-start gap-3">
                 <Icons.Flash className="text-red-400 mt-1 flex-shrink-0" />
                 <div className="flex-1">
-                    <h3 className="font-bold text-red-600">雲端備份設定錯誤</h3>
-                    <p className="text-sm text-red-500 mt-1 mb-2">
-                        {isDynamicOrigin 
-                            ? "偵測到您正在使用變動的雲端開發網址。Google 安全政策不支援浮動網域，您需要將當前的網址加入白名單。" 
-                            : "請檢查 Google Cloud Console 的 Authorized JavaScript origins 設定。"}
+                    <h3 className="font-bold text-red-600">雲端備份錯誤</h3>
+                    <p className="text-sm text-red-500 mt-1 mb-2 whitespace-pre-line">
+                        {syncStatus.error.includes('自動化測試環境') || syncStatus.error.includes('安全限制') || syncStatus.error.includes('自動化瀏覽器')
+                            ? syncStatus.error
+                            : isDynamicOrigin 
+                                ? "偵測到您正在使用變動的雲端開發網址。Google 安全政策不支援浮動網域，您需要將當前的網址加入白名單。" 
+                                : syncStatus.error.includes('Authorized JavaScript origins') || syncStatus.error.includes('OAuth 設定錯誤')
+                                    ? syncStatus.error
+                                    : "請檢查 Google Cloud Console 的 Authorized JavaScript origins 設定。"}
                     </p>
-                    <div className="flex flex-wrap gap-2">
-                        <button 
-                            onClick={copyOrigin}
-                            className="text-xs bg-white border border-red-200 text-red-600 px-3 py-1.5 rounded-lg font-bold hover:bg-red-100"
-                        >
-                            複製當前網址: {window.location.origin}
-                        </button>
-                        <button 
-                            onClick={() => setIgnoreSyncError(true)}
-                            className="text-xs bg-red-100 border border-transparent text-red-600 px-3 py-1.5 rounded-lg font-bold hover:bg-red-200"
-                        >
-                            暫時略過 (離線使用)
-                        </button>
-                    </div>
+                    {!syncStatus.error.includes('自動化測試環境') && !syncStatus.error.includes('安全限制') && !syncStatus.error.includes('自動化瀏覽器') && (
+                        <div className="flex flex-wrap gap-2">
+                            <button 
+                                onClick={copyOrigin}
+                                className="text-xs bg-white border border-red-200 text-red-600 px-3 py-1.5 rounded-lg font-bold hover:bg-red-100"
+                            >
+                                複製當前網址: {window.location.origin}
+                            </button>
+                            <button 
+                                onClick={() => setIgnoreSyncError(true)}
+                                className="text-xs bg-red-100 border border-transparent text-red-600 px-3 py-1.5 rounded-lg font-bold hover:bg-red-200"
+                            >
+                                暫時略過 (離線使用)
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -173,7 +179,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, views }) => {
 
       {/* Feature Icons - Decorative footer */}
       <div className="mt-auto pt-10 pb-4">
-        <div className="flex justify-center gap-8 lg:gap-12 text-xs lg:text-sm font-bold text-slate-400 opacity-60">
+        <div className="flex justify-center gap-8 lg:gap-12 text-xs lg:text-sm font-bold text-slate-400 opacity-60 mb-4">
           <div className="flex flex-col items-center gap-2">
             <Icons.Image size={24} />
             <span>圖像記憶</span>
@@ -186,6 +192,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, views }) => {
             <Icons.Audio size={24} />
             <span>自然發音</span>
           </div>
+        </div>
+        {/* Developer Tools */}
+        <div className="flex justify-center">
+          <button
+            onClick={() => onNavigate(views.ERROR_TEST)}
+            className="text-xs text-slate-400 hover:text-red-500 font-bold transition-colors"
+          >
+            Sentry 錯誤測試
+          </button>
         </div>
       </div>
 
