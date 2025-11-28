@@ -11,6 +11,7 @@ const STORE_IMAGES = 'images'; // To keep the main store light, images are separ
 
 let dbInstance: IDBDatabase | null = null;
 
+// @ARCH: db - FEAT: 初始化資料庫
 export const initDB = (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
     if (dbInstance) {
@@ -27,26 +28,61 @@ export const initDB = (): Promise<IDBDatabase> => {
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
+      const oldVersion = event.oldVersion;
+      const newVersion = event.newVersion;
+      
+      console.log(`[DB] Upgrading from version ${oldVersion} to ${newVersion}`);
+      
+      // IMPORTANT: Only create object stores if they don't exist
+      // Never delete existing object stores during upgrade to preserve data
       
       // Cards Store: Key is UUID
       if (!db.objectStoreNames.contains(STORE_CARDS)) {
+        console.log(`[DB] Creating object store: ${STORE_CARDS}`);
         db.createObjectStore(STORE_CARDS, { keyPath: 'id' });
+      } else {
+        console.log(`[DB] Object store ${STORE_CARDS} already exists, preserving data`);
       }
 
       // Images Store: Key is Card UUID
       if (!db.objectStoreNames.contains(STORE_IMAGES)) {
+        console.log(`[DB] Creating object store: ${STORE_IMAGES}`);
         db.createObjectStore(STORE_IMAGES); // Out-of-line keys
+      } else {
+        console.log(`[DB] Object store ${STORE_IMAGES} already exists, preserving data`);
       }
+      
+      // Future: Add migration logic here if needed
+      // For example, if you need to add indexes or modify structure:
+      // if (oldVersion < 2) {
+      //   // Migration logic for version 2
+      // }
     };
 
     request.onsuccess = (event) => {
       dbInstance = (event.target as IDBOpenDBRequest).result;
+      
+      // Add error handler to database connection
+      dbInstance.onerror = (event) => {
+        console.error("[DB] Database connection error:", event);
+      };
+      
+      // Log successful connection
+      console.log(`[DB] Database opened successfully (version ${dbInstance.version})`);
+      
       resolve(dbInstance);
+    };
+    
+    request.onblocked = () => {
+      console.warn("[DB] Database upgrade blocked - another tab may have the database open");
+      // Don't reject, just warn - the upgrade will proceed when the other tab closes
     };
   });
 };
 
+// @ARCH: db - FEAT: 資料庫操作介面
 export const dbOps = {
+  // @ARCH: db - FEAT: 取得所有單字卡
   async getAllCards(): Promise<any[]> {
     const db = await initDB();
     return new Promise((resolve, reject) => {
@@ -79,6 +115,7 @@ export const dbOps = {
     });
   },
 
+  // @ARCH: db - FEAT: 儲存單字卡
   async saveCard(card: any): Promise<void> {
     const db = await initDB();
     return new Promise((resolve, reject) => {
@@ -101,6 +138,7 @@ export const dbOps = {
     });
   },
 
+  // @ARCH: db - FEAT: 刪除單字卡
   async deleteCard(id: string): Promise<void> {
     const db = await initDB();
     return new Promise((resolve, reject) => {
@@ -112,6 +150,7 @@ export const dbOps = {
     });
   },
 
+  // @ARCH: db - FEAT: 取得單字卡圖片
   async getCardImage(id: string): Promise<string | undefined> {
     const db = await initDB();
     return new Promise((resolve) => {
@@ -122,6 +161,7 @@ export const dbOps = {
     });
   },
 
+  // @ARCH: db - UX: 匯出資料用於同步
   // Export all data for Sync (JSON format)
   async exportDataForSync(): Promise<{cards: any[]}> {
     const db = await initDB();
@@ -132,6 +172,7 @@ export const dbOps = {
     });
   },
 
+  // @ARCH: db - UX: 從同步匯入資料
   // Import data from Sync
   async importDataFromSync(cards: any[]): Promise<void> {
     const db = await initDB();

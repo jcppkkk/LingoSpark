@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { WordAnalysis, MnemonicOption } from "../types";
+import { WordAnalysis } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -28,30 +28,11 @@ const wordAnalysisSchema: Schema = {
       },
       description: "Etymology breakdown"
     },
-    sentence: { type: Type.STRING, description: "A practical, simple English example sentence using the word." },
-    sentenceTranslation: { type: Type.STRING, description: "Traditional Chinese translation of the sentence." },
-    mnemonicHint: { type: Type.STRING, description: "A creative visual memory association hint in Traditional Chinese. Describe a scene to help remember the word. If you use English word sounds/homophones in the association, mark them with format: 「中文詞」(英文單字), e.g., 「叫」(call) or 「馴鹿」(reindeer)." },
-    imagePrompt: { type: Type.STRING, description: "An English prompt describing the visual scene from the mnemonic hint to generate an image." }
+    sentence: { type: Type.STRING, description: "A simple, practical English example sentence suitable for third-grade elementary students. Use simple vocabulary and clear structure." },
+    sentenceTranslation: { type: Type.STRING, description: "Traditional Chinese translation of the sentence, suitable for third-grade students." },
+    imagePrompt: { type: Type.STRING, description: "An English prompt describing a visual scene to help remember the word. Create a fun, cartoon-style image description suitable for children." }
   },
-  required: ["word", "definition", "ipa", "syllables", "stressIndex", "roots", "sentence", "sentenceTranslation", "mnemonicHint", "imagePrompt"]
-};
-
-// Schema for generating alternative mnemonics
-const mnemonicOptionsSchema: Schema = {
-  type: Type.OBJECT,
-  properties: {
-    options: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          mnemonicHint: { type: Type.STRING, description: "A NEW, creative visual memory association hint in Traditional Chinese. Must be different from standard definitions. If you use English word sounds/homophones in the association, mark them with format: 「中文詞」(英文單字), e.g., 「叫」(call) or 「馴鹿」(reindeer)." },
-          imagePrompt: { type: Type.STRING, description: "English prompt for generating the image for this hint." }
-        },
-        required: ["mnemonicHint", "imagePrompt"]
-      }
-    }
-  }
+  required: ["word", "definition", "ipa", "syllables", "stressIndex", "roots", "sentence", "sentenceTranslation", "imagePrompt"]
 };
 
 // Schema for word extraction from image
@@ -66,35 +47,35 @@ const extractionSchema: Schema = {
   }
 };
 
+// @ARCH: geminiService - FEAT: 分析單字
 export const analyzeWord = async (word: string): Promise<WordAnalysis> => {
   const isPhrase = word.includes(' ') || word.includes('...');
   
   const prompt = isPhrase ? `
-    Act as an expert English teacher for kids. Analyze the English phrase: "${word}".
+    Act as an expert English teacher for third-grade elementary students. Analyze the English phrase: "${word}".
     
-    1. Provide the definition and meaning in Traditional Chinese.
-    2. For phrases with variable parts (like "as ... as"), explain the pattern and usage.
+    1. Provide a clear, simple definition in Traditional Chinese suitable for third-grade students.
+    2. For phrases with variable parts (like "as ... as"), explain the pattern and usage in simple terms.
     3. Break down the phrase into its key components if applicable.
-    4. Create a "Mnemonic Association" (聯想法). Connect the phrase to a fun, visual image or situation. If you use English word sounds/homophones in the association, mark them with format: 「中文詞」(英文單字), e.g., 「叫」(call) or 「馴鹿」(reindeer).
-    5. Provide a practical example sentence using this phrase.
+    4. Provide a simple, practical example sentence using this phrase. The sentence should use vocabulary appropriate for third-grade students.
+    5. Create a visual image prompt in English that describes a fun, cartoon-style scene to help remember the phrase. The description should be suitable for generating a children's illustration.
     
     For phrases:
     - Use the full phrase as the "word" field
     - For syllables, break down the main words in the phrase
     - For IPA, provide pronunciation for the key words
     - For roots, analyze the main words if applicable
-    - Focus on the phrase as a whole unit for the mnemonic
     
-    Output strictly in JSON. Use Traditional Chinese for meanings and hints. Make it fun and easy to remember!
+    Output strictly in JSON. Use Traditional Chinese for meanings. Keep everything simple and suitable for third-grade students!
   ` : `
-    Act as an expert English teacher for kids. Analyze the word: "${word}".
+    Act as an expert English teacher for third-grade elementary students. Analyze the word: "${word}".
     
     1. Break it down by syllables and mark phonics.
-    2. Analyze etymology (roots/prefixes).
-    3. Create a "Mnemonic Association" (聯想法). Connect the word's sound (homophones) or spelling to a fun, visual image. If you use English word sounds/homophones in the association, mark them with format: 「中文詞」(英文單字), e.g., 「叫」(call) or 「馴鹿」(reindeer).
-    4. Provide a practical sentence.
+    2. Analyze etymology (roots/prefixes) in simple terms.
+    3. Provide a simple, practical sentence using this word. The sentence should use vocabulary appropriate for third-grade students.
+    4. Create a visual image prompt in English that describes a fun, cartoon-style scene to help remember the word. The description should be suitable for generating a children's illustration.
     
-    Output strictly in JSON. Use Traditional Chinese for meanings and hints. Make it fun and easy to remember!
+    Output strictly in JSON. Use Traditional Chinese for meanings. Keep everything simple and suitable for third-grade students!
   `;
 
   try {
@@ -116,61 +97,14 @@ export const analyzeWord = async (word: string): Promise<WordAnalysis> => {
   }
 };
 
-export const generateMnemonicOptions = async (word: string): Promise<MnemonicOption[]> => {
-  // 1. Generate text options first
-  const prompt = `
-    For the English word "${word}", create 2 DISTINCT and CREATIVE mnemonic visualization strategies to help a child remember it.
-    Use puns, sound-alikes, or funny situations.
-    
-    Example for 'Sausage': 
-    1. Visualize a SAW cutting a SAGE plant. (Saw-Sage)
-    
-    If you use English word sounds/homophones in the mnemonicHint, mark them with format: 「中文詞」(英文單字), e.g., 「叫」(call) or 「馴鹿」(reindeer).
-    
-    Output JSON with 'mnemonicHint' (Traditional Chinese) and 'imagePrompt' (English).
-  `;
-
-  try {
-    const textResponse = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: mnemonicOptionsSchema,
-      },
-    });
-
-    const data = JSON.parse(textResponse.text || "{}");
-    if (!data.options || !Array.isArray(data.options)) throw new Error("Invalid format");
-
-    const options = data.options.slice(0, 2);
-
-    // 2. Generate images for these options in parallel
-    const imagePromises = options.map(async (opt: any) => {
-      try {
-        const url = await generateMnemonicImage(word, opt.imagePrompt);
-        return {
-          imageUrl: url,
-          mnemonicHint: opt.mnemonicHint,
-          imagePrompt: opt.imagePrompt
-        } as MnemonicOption;
-      } catch (e) {
-        console.error("Failed to generate image for option", e);
-        return null;
-      }
-    });
-
-    const results = await Promise.all(imagePromises);
-    return results.filter(r => r !== null) as MnemonicOption[];
-
-  } catch (error) {
-    console.error("Error generating mnemonic options:", error);
-    throw error;
-  }
-};
-
+/**
+ * 生成單字記憶圖片
+ * @param word 單字
+ * @param imagePrompt 圖像生成提示
+ * @returns Base64 編碼的圖片數據
+ */
+// @ARCH: geminiService - FEAT: 生成記憶圖片
 export const generateMnemonicImage = async (word: string, imagePrompt: string): Promise<string> => {
-  // Explicitly command to generate an image
   const prompt = `Generate an image.
     Subject: ${imagePrompt}
     Context: A cute, cartoon-style memory aid for the word "${word}".
@@ -215,129 +149,7 @@ export const generateMnemonicImage = async (word: string, imagePrompt: string): 
   }
 };
 
-// Generate alternative style images with the same mnemonic content
-const styleVariations = [
-  "watercolor painting style, soft brush strokes, pastel colors",
-  "pixel art style, 8-bit retro game aesthetic, pixelated",
-  "minimalist line art, simple geometric shapes, clean design",
-  "vintage illustration style, classic children's book art",
-  "claymation style, 3D clay figures, tactile texture",
-  "anime style, Japanese animation aesthetic, vibrant and expressive",
-  "sketch style, hand-drawn pencil sketch, artistic shading",
-  "pop art style, bold colors, comic book aesthetic"
-];
-
-export const generateAlternativeStyleImage = async (word: string, imagePrompt: string): Promise<string> => {
-  // Randomly select a style variation
-  const randomStyle = styleVariations[Math.floor(Math.random() * styleVariations.length)];
-  
-  // Generate image with same content but different style
-  const prompt = `Generate an image.
-    Subject: ${imagePrompt}
-    Context: A memory aid for the word "${word}" using the same visual concept but in a different artistic style.
-    Style: ${randomStyle}, vibrant colors, clear composition, no text inside the image.`;
-
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-image",
-      contents: {
-        parts: [{ text: prompt }]
-      },
-      config: {
-        imageConfig: {
-          aspectRatio: "1:1"
-        }
-      } 
-    });
-
-    const candidates = response.candidates;
-    if (candidates && candidates.length > 0) {
-      const content = candidates[0].content;
-      if (content && content.parts) {
-        for (const part of content.parts) {
-          if (part.inlineData && part.inlineData.data) {
-             return `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
-          }
-        }
-      }
-    }
-    
-    const textPart = candidates?.[0]?.content?.parts?.find(p => p.text)?.text;
-    if (textPart) {
-        console.warn("Model returned text instead of image:", textPart);
-        throw new Error("AI returned text explanation instead of image");
-    }
-
-    throw new Error("No image data returned");
-
-  } catch (error) {
-    console.error("Error generating alternative style image:", error);
-    throw error;
-  }
-};
-
-// Generate 2 alternative style images with the same mnemonic content
-export const generateAlternativeStyleOptions = async (word: string, imagePrompt: string, currentImageUrl: string, currentMnemonicHint: string): Promise<MnemonicOption[]> => {
-  // Randomly select 2 different style variations
-  const shuffledStyles = [...styleVariations].sort(() => Math.random() - 0.5);
-  const selectedStyles = shuffledStyles.slice(0, 2);
-  
-  // Generate images for these styles in parallel
-  const imagePromises = selectedStyles.map(async (style) => {
-    try {
-      const prompt = `Generate an image.
-        Subject: ${imagePrompt}
-        Context: A memory aid for the word "${word}" using the same visual concept but in a different artistic style.
-        Style: ${style}, vibrant colors, clear composition, no text inside the image.`;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-image",
-        contents: {
-          parts: [{ text: prompt }]
-        },
-        config: {
-          imageConfig: {
-            aspectRatio: "1:1"
-          }
-        } 
-      });
-
-      const candidates = response.candidates;
-      if (candidates && candidates.length > 0) {
-        const content = candidates[0].content;
-        if (content && content.parts) {
-          for (const part of content.parts) {
-            if (part.inlineData && part.inlineData.data) {
-              const imageUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
-              return {
-                imageUrl,
-                mnemonicHint: currentMnemonicHint,
-                imagePrompt: imagePrompt
-              } as MnemonicOption;
-            }
-          }
-        }
-      }
-      return null;
-    } catch (e) {
-      console.error("Failed to generate alternative style image", e);
-      return null;
-    }
-  });
-
-  const results = await Promise.all(imagePromises);
-  const validOptions = results.filter(r => r !== null) as MnemonicOption[];
-  
-  // Add current option as the first option
-  const currentOption: MnemonicOption = {
-    imageUrl: currentImageUrl,
-    mnemonicHint: currentMnemonicHint,
-    imagePrompt: imagePrompt
-  };
-  
-  return [currentOption, ...validOptions];
-};
-
+// @ARCH: geminiService - FEAT: 從圖片提取單字
 export const extractWordsFromImage = async (base64Data: string): Promise<string[]> => {
   // Clean base64 string
   const parts = base64Data.split(',');

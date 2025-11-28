@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Icons } from '../constants';
-import { analyzeWord, generateMnemonicImage, extractWordsFromImage } from '../services/geminiService';
+import { analyzeWord, extractWordsFromImage, generateMnemonicImage } from '../services/geminiService';
 import { createNewCard, saveCard, checkWordExists, getCards, deleteCard } from '../services/storageService';
+import { findDefaultEnglishVoice } from '../services/speechService';
 import { Flashcard, CardStatus } from '../types';
 import FlashcardComponent from './FlashcardComponent';
+import ImageRegenerateModal from './ImageRegenerateModal';
 import { Trash2, Filter } from 'lucide-react';
 
 interface WordLibraryProps {
@@ -14,7 +16,7 @@ interface WordLibraryProps {
 interface QueueItem {
   id: string;
   word: string;
-  status: 'PENDING' | 'ANALYZING' | 'GENERATING_IMAGE' | 'SUCCESS' | 'ERROR';
+  status: 'PENDING' | 'ANALYZING' | 'SUCCESS' | 'ERROR';
   card?: Flashcard;
   errorMsg?: string;
   isDuplicate?: boolean;
@@ -35,8 +37,9 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
   const [isLoadingLibrary, setIsLoadingLibrary] = useState(true);
   const [filterStatus, setFilterStatus] = useState<'all' | 'due' | 'learned'>('all');
   const [sortBy, setSortBy] = useState<'a-z' | 'date' | 'proficiency'>('a-z');
+  const [voice, setVoice] = useState<SpeechSynthesisVoice | null>(null);
   
-  // Create Card State (from AddWord)
+  // Create Card State
   const [input, setInput] = useState('');
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [previewItem, setPreviewItem] = useState<QueueItem | null>(null);
@@ -48,10 +51,30 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
   const [isScanning, setIsScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
 
+  // Image Regenerate State
+  const [isRegenerateModalOpen, setIsRegenerateModalOpen] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [regeneratedImages, setRegeneratedImages] = useState<string[]>([]);
+  const [regeneratingCard, setRegeneratingCard] = useState<Flashcard | null>(null);
+
   // @ARCH:START WordLibrary - FEAT: 載入單字庫
   // Load library cards
+  const loadLibraryCards = async () => {
+    setIsLoadingLibrary(true);
+    try {
+      const cards = await getCards();
+      setLibraryCards(cards);
+    } catch (err) {
+      console.error('載入字庫失敗:', err);
+    } finally {
+      setIsLoadingLibrary(false);
+    }
+  };
+
   useEffect(() => {
     loadLibraryCards();
+    // 載入預設語音
+    findDefaultEnglishVoice().then(v => setVoice(v)).catch(console.error);
   }, []);
   // @ARCH:END WordLibrary - FEAT: 載入單字庫
 
@@ -60,7 +83,7 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
   useEffect(() => {
     const processQueue = async () => {
       const isBusy = queue.some(item => 
-        item.status === 'ANALYZING' || item.status === 'GENERATING_IMAGE'
+        item.status === 'ANALYZING'
       );
       if (isBusy) return;
 
@@ -141,51 +164,13 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
     };
 
     button.addEventListener('click', handleClick);
+
     return () => {
       button.removeEventListener('click', handleClick);
     };
   }, []);
 
-  const loadLibraryCards = async () => {
-    setIsLoadingLibrary(true);
-    try {
-      const cards = await getCards();
-      setLibraryCards(cards);
-    } catch (err) {
-      console.error('載入字庫失敗:', err);
-    } finally {
-      setIsLoadingLibrary(false);
-    }
-  };
-
-  const handleDeleteCard = async (cardId: string) => {
-    if (!confirm('確定要刪除這個單字卡嗎？')) return;
-    
-    try {
-      await deleteCard(cardId);
-      setLibraryCards(prev => prev.filter(c => c.id !== cardId));
-      if (selectedCard?.id === cardId) {
-        setSelectedCard(null);
-      }
-      onSuccess(); // Refresh stats
-    } catch (err) {
-      console.error('刪除失敗:', err);
-      alert('刪除失敗，請重試');
-    }
-  };
-
-  const handleCardUpdate = (updatedCard: Flashcard) => {
-    setLibraryCards(prev => prev.map(c => c.id === updatedCard.id ? updatedCard : c));
-    if (selectedCard?.id === updatedCard.id) {
-      setSelectedCard(updatedCard);
-    }
-    // Also update queue if applicable
-    setPreviewItem(prev => prev && prev.card?.id === updatedCard.id ? { ...prev, card: updatedCard } : prev);
-    setQueue(prev => prev.map(item => 
-      item.card?.id === updatedCard.id ? { ...item, card: updatedCard } : item
-    ));
-  };
-
+  // @ARCH:START WordLibrary - FEAT: AI 分析單字
   const processItem = async (item: QueueItem) => {
     const updateStatus = (updates: Partial<QueueItem>) => {
       setQueue(prev => prev.map(i => i.id === item.id ? { ...i, ...updates } : i));
@@ -201,18 +186,18 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
         }
 
         const analysis = await analyzeWord(item.word);
-        let newCard = createNewCard(analysis, undefined, CardStatus.GENERATING);
-
-        updateStatus({ status: 'GENERATING_IMAGE', card: newCard });
         
+        // 生成圖片
+        let imageUrl: string | undefined;
         try {
-            const imagePrompt = analysis.imagePrompt || analysis.mnemonicHint || analysis.word;
-            const imageUrl = await generateMnemonicImage(analysis.word, imagePrompt);
-            newCard.imageUrl = imageUrl;
-            newCard.imagePrompt = imagePrompt;
+          if (analysis.imagePrompt) {
+            imageUrl = await generateMnemonicImage(analysis.word, analysis.imagePrompt);
+          }
         } catch (imgErr) {
-            console.warn("Image gen failed, continuing with text-only card", imgErr);
+          console.warn("圖片生成失敗，繼續使用文字卡片", imgErr);
         }
+        
+        let newCard = createNewCard(analysis, imageUrl, CardStatus.GENERATING);
 
         await saveCard(newCard);
         const finalCard = { ...newCard, status: CardStatus.NORMAL };
@@ -226,7 +211,8 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
 
         // Refresh library when new card is created
         await loadLibraryCards();
-        onSuccess();
+        // 新增完成後切換到字庫管理標籤頁，不跳回主畫面
+        setActiveTab('library');
 
     } catch (err: any) {
         console.error("Processing failed for", item.word, err);
@@ -249,11 +235,13 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
         updateStatus({ status: 'ERROR', errorMsg: msg });
     }
   };
+  // @ARCH:END WordLibrary - FEAT: AI 分析單字
 
+  // @ARCH:START WordLibrary - UX: 新增單字到佇列流程
   const addToQueue = (wordStr: string) => {
     if (!wordStr.trim()) return;
     const word = wordStr.trim();
-    
+
     if (queue.some(q => q.word.toLowerCase() === word.toLowerCase())) return;
 
     const newItem: QueueItem = {
@@ -264,12 +252,9 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
     setQueue(prev => [...prev, newItem]);
     setInput('');
   };
+  // @ARCH:END WordLibrary - UX: 新增單字到佇列流程
 
-  const handleInputSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    addToQueue(input);
-  };
-
+  // @ARCH:START WordLibrary - FEAT: 圖片識別
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -304,6 +289,208 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
     };
     reader.readAsDataURL(file);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+  // @ARCH:END WordLibrary - FEAT: 圖片識別
+
+
+// ========================================
+// 其他程式碼（未標記）
+// ========================================
+
+
+
+// ========================================
+// 其他程式碼（未標記）
+// ========================================
+
+
+  // Restore saved detected words and queue
+  useEffect(() => {
+    try {
+      const savedDetectedWords = localStorage.getItem(STORAGE_KEY_DETECTED_WORDS);
+      if (savedDetectedWords) {
+        const words = JSON.parse(savedDetectedWords);
+        if (Array.isArray(words) && words.length > 0) {
+          setDetectedWords(words);
+        }
+      }
+
+      const savedQueue = localStorage.getItem(STORAGE_KEY_QUEUE);
+      if (savedQueue) {
+        const queueItems: QueueItem[] = JSON.parse(savedQueue);
+        const pendingItems = queueItems.filter(item => item.status === 'PENDING');
+        if (pendingItems.length > 0) {
+          setQueue(pendingItems);
+        }
+      }
+    } catch (err) {
+      console.warn('無法從 localStorage 恢復數據:', err);
+    }
+  }, []);
+
+  // Save detected words
+  useEffect(() => {
+    if (detectedWords.length > 0) {
+      try {
+        localStorage.setItem(STORAGE_KEY_DETECTED_WORDS, JSON.stringify(detectedWords));
+      } catch (err) {
+        console.warn('無法保存檢測到的單字到 localStorage:', err);
+      }
+    }
+  }, [detectedWords]);
+
+  // Save queue
+  useEffect(() => {
+    if (queue.length > 0) {
+      try {
+        const pendingItems = queue.filter(item => item.status === 'PENDING');
+        if (pendingItems.length > 0) {
+          localStorage.setItem(STORAGE_KEY_QUEUE, JSON.stringify(pendingItems));
+        } else {
+          localStorage.removeItem(STORAGE_KEY_QUEUE);
+        }
+      } catch (err) {
+        console.warn('無法保存隊列到 localStorage:', err);
+      }
+    } else {
+      localStorage.removeItem(STORAGE_KEY_QUEUE);
+    }
+  }, [queue]);
+
+  // File input handler
+  useEffect(() => {
+    const button = uploadButtonRef.current;
+    const fileInput = fileInputRef.current;
+    
+    if (!button || !fileInput) return;
+
+    const handleClick = (e: MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      fileInput.click();
+    };
+
+    button.addEventListener('click', handleClick);
+
+    return () => {
+      button.removeEventListener('click', handleClick);
+    };
+  }, []);
+
+  const handleDeleteCard = async (cardId: string) => {
+    if (!confirm('確定要刪除這個單字卡嗎？')) return;
+    
+    try {
+      await deleteCard(cardId);
+      setLibraryCards(prev => prev.filter(c => c.id !== cardId));
+      if (selectedCard?.id === cardId) {
+        setSelectedCard(null);
+      }
+      onSuccess(); // Refresh stats
+    } catch (err) {
+      console.error('刪除失敗:', err);
+      alert('刪除失敗，請重試');
+    }
+  };
+
+  const handleCardUpdate = (updatedCard: Flashcard) => {
+    setLibraryCards(prev => prev.map(c => c.id === updatedCard.id ? updatedCard : c));
+    if (selectedCard?.id === updatedCard.id) {
+      setSelectedCard(updatedCard);
+    }
+    // Also update queue if applicable
+    setPreviewItem(prev => prev && prev.card?.id === updatedCard.id ? { ...prev, card: updatedCard } : prev);
+    setQueue(prev => prev.map(item => 
+      item.card?.id === updatedCard.id ? { ...item, card: updatedCard } : item
+    ));
+  };
+
+  // @ARCH:START WordLibrary - FEAT: 重新生成圖片
+  const handleRegenerateImage = async (card: Flashcard) => {
+    if (!card.imagePrompt) {
+      alert('此單字沒有圖片生成提示，無法重新生成圖片');
+      return;
+    }
+
+    setIsRegenerating(true);
+    setRegeneratingCard(card);
+    setRegeneratedImages([]);
+    setIsRegenerateModalOpen(true);
+
+    try {
+      // 生成兩張新圖片
+      const [image1, image2] = await Promise.all([
+        generateMnemonicImage(card.word, card.imagePrompt).catch(err => {
+          console.error('生成第一張圖片失敗:', err);
+          return null;
+        }),
+        generateMnemonicImage(card.word, card.imagePrompt).catch(err => {
+          console.error('生成第二張圖片失敗:', err);
+          return null;
+        })
+      ]);
+
+      const newImages = [image1, image2].filter((img): img is string => img !== null);
+      
+      if (newImages.length === 0) {
+        // 如果兩張圖片都生成失敗
+        alert('圖片生成失敗，請檢查網路連線後重試');
+        setIsRegenerateModalOpen(false);
+        setRegeneratingCard(null);
+        return;
+      }
+      
+      setRegeneratedImages(newImages);
+    } catch (error) {
+      console.error('重新生成圖片失敗:', error);
+      alert('重新生成圖片失敗，請重試');
+      setIsRegenerateModalOpen(false);
+      setRegeneratingCard(null);
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
+  const handleImageSelect = async (selectedImageUrl: string | null) => {
+    if (!regeneratingCard) return;
+
+    try {
+      const updatedCard: Flashcard = {
+        ...regeneratingCard,
+        imageUrl: selectedImageUrl || undefined,
+        status: CardStatus.UPDATING
+      };
+
+      await saveCard(updatedCard, false); // 不立即清除狀態
+      handleCardUpdate(updatedCard);
+
+      // 延遲清除狀態，讓使用者看到更新效果
+      setTimeout(() => {
+        const finalCard: Flashcard = { ...updatedCard, status: CardStatus.NORMAL };
+        saveCard(finalCard, true).then(() => handleCardUpdate(finalCard));
+      }, 1000);
+    } catch (error) {
+      console.error('更新圖片失敗:', error);
+      alert('更新圖片失敗，請重試');
+    } finally {
+      setIsRegenerateModalOpen(false);
+      setRegeneratingCard(null);
+      setRegeneratedImages([]);
+    }
+  };
+
+  // 當模態框關閉時重置選擇狀態
+  const handleModalClose = () => {
+    setIsRegenerateModalOpen(false);
+    setRegeneratingCard(null);
+    setRegeneratedImages([]);
+    setIsRegenerating(false);
+  };
+  // @ARCH:END WordLibrary - FEAT: 重新生成圖片
+
+  const handleInputSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    addToQueue(input);
   };
 
   const handleClearDetectedWords = () => {
@@ -382,13 +569,15 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
   return (
     <div className="max-w-7xl mx-auto h-full flex flex-col p-6 animate-in fade-in duration-300">
       
+      {/* @ARCH:START WordLibrary - UI: 頁面標頭 */}
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <button 
           onClick={onCancel} 
-          className="p-3 text-slate-400 hover:bg-white hover:text-primary hover:shadow-md rounded-full transition-all"
+          className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-800 rounded-xl font-bold transition-all active:scale-95"
         >
-          <Icons.Flip size={24} className="rotate-90" />
+          <Icons.ArrowLeft size={20} />
+          <span>返回</span>
         </button>
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-gradient-to-br from-primary to-purple-500 text-white rounded-2xl shadow-lg transform -rotate-2 border-2 border-white/50">
@@ -401,7 +590,9 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
         </div>
         <div className="w-10"></div>
       </div>
+      {/* @ARCH:END WordLibrary - UI: 頁面標頭 */}
 
+      {/* @ARCH:START WordLibrary - UI: 標籤切換 */}
       {/* Tabs */}
       <div className="flex gap-2 mb-6 bg-slate-50 p-1 rounded-2xl">
         <button
@@ -430,12 +621,13 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
             <span>製作新卡片</span>
             {queue.length > 0 && (
               <span className="bg-primary text-white text-xs px-2 py-0.5 rounded-full">
-                {queue.filter(q => q.status === 'PENDING' || q.status === 'ANALYZING' || q.status === 'GENERATING_IMAGE').length}
+                {queue.filter(q => q.status === 'PENDING' || q.status === 'ANALYZING').length}
               </span>
             )}
           </div>
         </button>
       </div>
+      {/* @ARCH:END WordLibrary - UI: 標籤切換 */}
 
       {/* Content Area */}
       <div className="flex-1 overflow-hidden">
@@ -444,6 +636,7 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
           <div className="h-full flex gap-6">
             {/* Left: Card List */}
             <div className="w-1/3 flex flex-col gap-4 h-full">
+              {/* @ARCH:START WordLibrary - UI: 搜尋與過濾工具 */}
               {/* Search, Filter and Sort */}
               <div className="flex flex-col gap-2">
                 {/* Search Bar */}
@@ -485,7 +678,9 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
                   </div>
                 </div>
               </div>
+              {/* @ARCH:END WordLibrary - UI: 搜尋與過濾工具 */}
 
+              {/* @ARCH:START WordLibrary - UI: 單字卡列表 */}
               {/* Card List */}
               <div className="flex-1 overflow-y-auto custom-scrollbar bg-white rounded-2xl border-2 border-slate-100 p-2">
                 {isLoadingLibrary ? (
@@ -511,7 +706,35 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <h3 className="font-black text-lg text-dark">{card.word}</h3>
+                          <h3 className="font-black text-lg text-dark flex items-center gap-1.5">
+                            {card.word}
+                            {card.data.syllables && card.data.syllables.length >= 2 && card.data.stressIndex !== undefined && (
+                              <span className="text-xs font-bold" title={`重音節: ${card.data.syllables[card.data.stressIndex]}`}>
+                                <div className="flex items-center gap-1">
+                                  {card.data.syllables.map((syl, idx) => {
+                                    const isStressed = idx === card.data.stressIndex;
+                                    return (
+                                      <span 
+                                        key={idx} 
+                                        className={`relative inline-block text-dark border-b-2 ${isStressed ? 'border-teal-500 border-b-4' : 'border-blue-700'}`}
+                                      >
+                                        {/* 重音符號標記 */}
+                                        {isStressed && (
+                                          <span 
+                                            className="absolute -top-2 left-1/2 -translate-x-1/2 text-teal-500 font-bold"
+                                            style={{ fontSize: '0.6em' }}
+                                          >
+                                            ′
+                                          </span>
+                                        )}
+                                        {syl}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              </span>
+                            )}
+                          </h3>
                           <p className="text-sm text-slate-500 mt-1 line-clamp-1">{card.data.definition}</p>
                           <div className="flex items-center gap-2 mt-2">
                             <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
@@ -543,37 +766,73 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
                   ))
                 )}
               </div>
+              {/* @ARCH:END WordLibrary - UI: 單字卡列表 */}
             </div>
 
+            {/* @ARCH:START WordLibrary - UI: 單字卡預覽區 */}
             {/* Right: Card Preview */}
-            <div className="flex-1 h-full flex items-center justify-center bg-white/40 rounded-[3rem] border-4 border-dashed border-slate-200 p-6">
+            <div className="flex-1 h-full flex flex-col bg-white/40 rounded-[3rem] border-4 border-dashed border-slate-200 p-6 overflow-hidden">
               {selectedCard ? (
-                <div className="w-full h-full flex items-center justify-center">
-                  <FlashcardComponent 
-                    card={selectedCard} 
-                    isFlipped={true}
-                    onFlip={() => {}} 
-                    onUpdateCard={handleCardUpdate}
-                    allowEdit={true}
-                    isPreview={true}
-                  />
-                </div>
+                <>
+                  {/* 重新生成圖片按鈕 */}
+                  {selectedCard.imagePrompt && (
+                    <div className="mb-4 flex justify-end">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRegenerateImage(selectedCard);
+                        }}
+                        disabled={isRegenerating}
+                        className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold rounded-xl transition-all active:scale-95 shadow-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="重新生成圖片"
+                      >
+                        {isRegenerating ? (
+                          <>
+                            <Icons.Regenerate size={18} className="animate-spin" />
+                            生成中...
+                          </>
+                        ) : (
+                          <>
+                            <Icons.Regenerate size={18} />
+                            重新生成圖片
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* 單字卡預覽 */}
+                  <div className="flex-1 w-full flex items-center justify-center overflow-hidden">
+                    <FlashcardComponent 
+                      card={selectedCard} 
+                      onUpdateCard={handleCardUpdate}
+                      allowEdit={true}
+                      isPreview={true}
+                      voice={voice}
+                      autoPlay={false}
+                      showSpeechButton={true}
+                    />
+                  </div>
+                </>
               ) : (
-                <div className="flex flex-col items-center justify-center text-slate-300">
+                <div className="flex flex-col items-center justify-center text-slate-300 h-full">
                   <Icons.Book size={64} className="mb-4 opacity-50" />
                   <p className="font-bold text-xl mb-2">選擇單字卡查看</p>
                   <p className="text-sm opacity-60">從左側列表選擇一個單字</p>
                 </div>
               )}
             </div>
+            {/* @ARCH:END WordLibrary - UI: 單字卡預覽區 */}
           </div>
         ) : (
+          /* @ARCH:START WordLibrary - UI: 製作新卡片視圖 */
           /* Create Card View */
           <div className="h-full flex flex-col lg:flex-row gap-8 lg:items-start overflow-y-auto lg:overflow-hidden">
             
             {/* Left: Input & Queue List */}
             <div className="w-full lg:w-1/3 flex flex-col gap-6 h-full">
                 
+                {/* @ARCH:START WordLibrary - UI: 單字輸入表單 */}
                 {/* Input Form */}
                 <div>
                      <div className="flex items-center gap-2.5 mb-3">
@@ -609,6 +868,7 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
                     </form>
                     <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
                 </div>
+                {/* @ARCH:END WordLibrary - UI: 單字輸入表單 */}
 
                 {/* Scanned Words */}
                 {detectedWords.length > 0 && (
@@ -701,7 +961,7 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
                         >
                             {(item.status === 'ANALYZING' || item.status === 'GENERATING_IMAGE') && (
                                 <div className="absolute left-0 bottom-0 h-1 bg-primary/20 w-full">
-                                    <div className={`h-full bg-primary transition-all duration-1000 ${item.status === 'GENERATING_IMAGE' ? 'w-full' : 'w-1/3'}`}></div>
+                                    <div className={`h-full bg-primary transition-all duration-1000 w-1/3`}></div>
                                 </div>
                             )}
 
@@ -726,7 +986,7 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
                                     </div>
                                 )}
                                 
-                                {item.status === 'GENERATING_IMAGE' && (
+                                {item.status === 'ANALYZING' && (
                                     <div className="flex items-center gap-1 text-accent text-xs font-bold">
                                         <Icons.Image size={14} className="animate-pulse"/>
                                         <span>繪圖中...</span>
@@ -766,18 +1026,19 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
             </div>
 
             {/* Right: Preview Area */}
-            <div className="w-full lg:w-2/3 h-full flex flex-col items-center justify-center bg-white/40 rounded-[3rem] border-4 border-dashed border-slate-200 p-4 lg:p-6 relative">
+            <div className="w-full lg:w-2/3 h-full flex flex-col items-center justify-center bg-white/40 rounded-[3rem] border-4 border-dashed border-slate-200 p-4 lg:p-6 relative overflow-hidden">
                 
                 {previewItem?.status === 'SUCCESS' && previewItem.card ? (
-                     <div className="w-full h-full flex items-center justify-center animate-in zoom-in-95 duration-300 relative">
-                        <div className="w-full h-full flex items-center justify-center min-h-0">
+                     <div className="w-full h-full flex items-center justify-center animate-in zoom-in-95 duration-300 relative overflow-hidden">
+                        <div className="w-full h-full flex items-center justify-center min-h-0 overflow-hidden">
                             <FlashcardComponent 
                                 card={previewItem.card} 
-                                isFlipped={true}
-                                onFlip={() => {}} 
                                 onUpdateCard={handleCardUpdate}
                                 allowEdit={true}
                                 isPreview={true}
+                                voice={voice}
+                                autoPlay={false}
+                                showSpeechButton={true}
                             />
                         </div>
                         <div className="absolute top-4 right-4 text-secondary font-bold flex items-center gap-2 bg-green-50 px-3 py-1.5 rounded-full border border-green-100 shadow-sm z-10">
@@ -813,6 +1074,16 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
           </div>
         )}
       </div>
+
+      {/* 圖片重新生成模態框 */}
+      <ImageRegenerateModal
+        isOpen={isRegenerateModalOpen}
+        originalImage={regeneratingCard?.imageUrl}
+        newImages={regeneratedImages}
+        onSelect={handleImageSelect}
+        onClose={handleModalClose}
+        isLoading={isRegenerating}
+      />
     </div>
   );
 };

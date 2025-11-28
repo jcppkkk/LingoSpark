@@ -44,6 +44,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, views }) => {
       performSync(true);
   };
 
+// @ARCH: Dashboard.FEAT.複製當前網址功能
   const copyOrigin = () => {
       navigator.clipboard.writeText(window.location.origin);
       alert("網址已複製！請前往 Google Cloud Console > APIs & Services > Credentials > Authorized JavaScript origins 貼上。");
@@ -52,6 +53,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, views }) => {
   return (
     <div className="h-full flex flex-col p-6 max-w-5xl mx-auto animate-in slide-in-from-bottom-4 duration-500 bg-gradient-to-b from-transparent to-white/50">
       
+// @ARCH: Dashboard.UI.應用程式標頭
       {/* Header */}
       <div className="flex items-center justify-between mb-10 mt-4">
         <div className="flex items-center gap-4">
@@ -82,6 +84,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, views }) => {
         )}
         {/* @ARCH:END Dashboard - UI: 雲端同步按鈕 */}
       </div>
+// @ARCH: Dashboard.UX.雲端同步錯誤提示與處理
 
       {/* Sync Error Alert (Dismissible) */}
       {syncStatus.error && !ignoreSyncError && (
@@ -118,6 +121,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, views }) => {
                 </div>
             </div>
         </div>
+// @ARCH: Dashboard.UI.開發者設定指南提示
       )}
 
       {/* Developer Setup Guide (Only shows if Client ID is missing) */}
@@ -135,76 +139,71 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, views }) => {
           </div>
       )}
 
-      {/* Stats Cards - Gamified */}
-      {/* @ARCH:START Dashboard - UI: 統計卡片區塊 */}
-      <div className="grid grid-cols-2 gap-4 lg:gap-8 mb-8 lg:mb-12">
-        <div className="bg-white p-6 rounded-[2rem] border-2 border-b-8 border-red-100 shadow-sm flex flex-col items-center justify-center text-center relative overflow-hidden group hover:-translate-y-1 transition-transform">
-          <div className="absolute top-0 right-0 w-16 h-16 bg-red-50 rounded-bl-[2rem] -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-          <span className="text-5xl lg:text-6xl font-black text-joy mb-2 relative z-10">{stats.dueCards}</span>
-          <span className="text-sm font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full">待複習</span>
-        </div>
-        <div className="bg-white p-6 rounded-[2rem] border-2 border-b-8 border-green-100 shadow-sm flex flex-col items-center justify-center text-center relative overflow-hidden group hover:-translate-y-1 transition-transform">
-          <div className="absolute top-0 right-0 w-16 h-16 bg-green-50 rounded-bl-[2rem] -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-          <span className="text-5xl lg:text-6xl font-black text-secondary mb-2 relative z-10">{stats.totalCards}</span>
-          <span className="text-sm font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full">總單字量</span>
+      {/* 總單字量資訊 - 簡潔設計 */}
+      {/* @ARCH:START Dashboard - UI: 總單字量資訊 */}
+      <div className="mb-6 flex items-center justify-end">
+        <div className="flex items-center gap-2 text-slate-500">
+          <Icons.Book size={18} />
+          <span className="text-sm font-bold">總單字量：</span>
+          <span className="text-lg font-black text-slate-700">{stats.totalCards}</span>
         </div>
       </div>
-      {/* @ARCH:END Dashboard - UI: 統計卡片區塊 */}
+      {/* @ARCH:END Dashboard - UI: 總單字量資訊 */}
 
       {/* Main Actions - Grid on desktop */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
-        {/* @ARCH:START Dashboard - UI: 開始複習按鈕 */}
+        {/* @ARCH:START Dashboard - UI: 開始複習挑戰按鈕（整合待複習資訊） */}
         <button 
           onClick={() => onNavigate(views.PRACTICE)}
           disabled={stats.dueCards === 0}
-          className="relative overflow-hidden group p-8 rounded-[2rem] bg-gradient-to-r from-primary to-indigo-500 text-white shadow-xl shadow-indigo-200 transition-all hover:scale-[1.02] disabled:opacity-60 disabled:scale-100 disabled:cursor-not-allowed border-4 border-transparent hover:border-white/20 flex flex-col justify-between h-full min-h-[160px]"
+          className="relative overflow-hidden group p-8 rounded-[2rem] bg-gradient-to-r from-primary to-indigo-500 text-white shadow-xl shadow-indigo-200 transition-all hover:scale-[1.02] disabled:opacity-60 disabled:scale-100 disabled:cursor-not-allowed border-4 border-transparent hover:border-white/20 flex flex-col justify-between h-full min-h-[180px]"
         >
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl transform translate-x-10 -translate-y-10 group-hover:translate-x-5 transition-transform"></div>
           
-          <div className="relative z-10 flex items-center justify-between">
-            <div className="text-left">
-              <h3 className="text-2xl font-black mb-2">開始複習挑戰</h3>
-              <p className="text-indigo-100 font-medium">
-                {stats.dueCards > 0 ? `有 ${stats.dueCards} 個單字等著你！` : "目前沒有需要複習的單字"}
-              </p>
+          <div className="relative z-10">
+            {/* 待複習數量顯示 */}
+            <div className="mb-4 flex items-center gap-3">
+              <div className="bg-white/20 px-4 py-2 rounded-xl backdrop-blur-sm">
+                <span className="text-4xl font-black">{stats.dueCards}</span>
+              </div>
+              <div className="flex-1">
+                <span className="text-sm font-bold text-indigo-100 block">待複習</span>
+                <span className="text-xs text-indigo-200">個單字</span>
+              </div>
             </div>
-            <div className="bg-white/20 p-4 rounded-2xl backdrop-blur-sm animate-bounce">
-              <Icons.Learn size={32} />
+            
+            {/* 標題和描述 */}
+            <div className="flex items-center justify-between">
+              <div className="text-left">
+                <h3 className="text-2xl font-black mb-2">開始複習挑戰</h3>
+                <p className="text-indigo-100 font-medium">
+                  {stats.dueCards > 0 ? `有 ${stats.dueCards} 個單字等著你！` : "目前沒有需要複習的單字"}
+                </p>
+              </div>
+              <div className="bg-white/20 p-4 rounded-2xl backdrop-blur-sm animate-bounce">
+                <Icons.Learn size={32} />
+              </div>
             </div>
           </div>
         </button>
-        {/* @ARCH:END Dashboard - UI: 開始複習按鈕 */}
+        {/* @ARCH:END Dashboard - UI: 開始複習挑戰按鈕（整合待複習資訊） */}
 
-        {/* @ARCH:START Dashboard - UI: 製作新單字卡按鈕 */}
+        {/* @ARCH:START Dashboard - UI: 管理單字卡按鈕 */}
         <button 
           onClick={() => onNavigate(views.ADD_WORD)}
-          className="p-8 rounded-[2rem] bg-white border-4 border-dashed border-slate-200 text-slate-400 hover:border-primary hover:text-primary hover:bg-indigo-50 transition-all group active:scale-95 flex flex-col items-center justify-center gap-4 h-full min-h-[160px]"
+          className="p-8 rounded-[2rem] bg-white border-4 border-dashed border-slate-200 text-slate-400 hover:border-primary hover:text-primary hover:bg-indigo-50 transition-all group active:scale-95 flex flex-col items-center justify-center gap-4 h-full min-h-[180px]"
         >
           <div className="p-4 bg-slate-100 rounded-full group-hover:bg-primary group-hover:text-white transition-colors">
-            <Icons.Add size={32} />
+            <Icons.Book size={32} />
           </div>
-          <span className="font-black text-2xl">製作新單字卡</span>
+          <span className="font-black text-2xl">管理單字卡</span>
         </button>
-        {/* @ARCH:END Dashboard - UI: 製作新單字卡按鈕 */}
+        {/* @ARCH:END Dashboard - UI: 管理單字卡按鈕 */}
       </div>
+// @ARCH: Dashboard.UI.Sentry 錯誤測試按鈕
 
-      {/* Feature Icons - Decorative footer */}
+      {/* Developer Tools */}
       <div className="mt-auto pt-10 pb-4">
-        <div className="flex justify-center gap-8 lg:gap-12 text-xs lg:text-sm font-bold text-slate-400 opacity-60 mb-4">
-          <div className="flex flex-col items-center gap-2">
-            <Icons.Image size={24} />
-            <span>圖像記憶</span>
-          </div>
-          <div className="flex flex-col items-center gap-2">
-            <Icons.Search size={24} />
-            <span>字根拆解</span>
-          </div>
-          <div className="flex flex-col items-center gap-2">
-            <Icons.Audio size={24} />
-            <span>自然發音</span>
-          </div>
-        </div>
-        {/* Developer Tools */}
         <div className="flex justify-center">
           <button
             onClick={() => onNavigate(views.ERROR_TEST)}

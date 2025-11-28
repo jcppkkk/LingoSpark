@@ -6,6 +6,7 @@ import { migrateCards } from "./migrationService";
 
 // Now calls IndexedDB asynchronously
 
+// @ARCH: storageService - FEAT: 取得所有單字卡
 export const getCards = async (): Promise<Flashcard[]> => {
   const cards = await dbOps.getAllCards();
   // Automatically migrate cards to latest version
@@ -24,6 +25,7 @@ export const getCards = async (): Promise<Flashcard[]> => {
   return migratedCards;
 };
 
+// @ARCH: storageService - FEAT: 儲存單字卡
 export const saveCard = async (card: Flashcard, clearStatus: boolean = true): Promise<void> => {
   const cardWithTimestamp = {
       ...card,
@@ -40,10 +42,12 @@ export const saveCard = async (card: Flashcard, clearStatus: boolean = true): Pr
   }
 };
 
+// @ARCH: storageService - FEAT: 刪除單字卡
 export const deleteCard = async (id: string): Promise<void> => {
   await dbOps.deleteCard(id);
 };
 
+// @ARCH: storageService - FEAT: 取得學習統計
 export const getStats = async (): Promise<LearningStats> => {
   const cards = await getCards();
   const now = Date.now();
@@ -57,28 +61,32 @@ export const getStats = async (): Promise<LearningStats> => {
   };
 };
 
+// @ARCH: storageService - FEAT: 檢查單字是否存在
 export const checkWordExists = async (word: string): Promise<boolean> => {
     const cards = await getCards();
     return cards.some(c => c.word.toLowerCase() === word.toLowerCase());
 };
 
+// @ARCH: storageService - FEAT: 建立新單字卡
 export const createNewCard = (analysisData: any, imageUrl?: string, status: CardStatus = CardStatus.GENERATING): Flashcard => {
   return {
     id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(), // Fallback
     word: analysisData.word,
     data: analysisData,
     imageUrl: imageUrl,
+    imagePrompt: analysisData.imagePrompt,
     createdAt: Date.now(),
     updatedAt: Date.now(),
     interval: DEFAULT_INTERVAL,
     repetition: DEFAULT_REPETITION,
     efactor: DEFAULT_EFACTOR,
     nextReviewDate: Date.now(),
-    dataVersion: 2, // Latest version
+    dataVersion: 4, // Latest version (removed mnemonic hint, kept image fields)
     status: status,
   };
 };
 
+// @ARCH: storageService - FEAT: 處理複習結果
 export const processReview = (card: Flashcard, quality: number): Flashcard => {
   let { repetition, interval, efactor } = card;
 

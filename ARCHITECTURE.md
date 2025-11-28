@@ -1,179 +1,23 @@
-# LingoSpark 架構與功能映射
+# LingoSpark 架構文檔
 
-本文檔描述 PRD/UX/UI 功能與程式碼的對應關係，幫助 AI agent 快速定位需要處理的區域。
+本文檔描述系統架構、服務層、資料模型等技術層面的資訊。
+
+**功能相關內容請參考**：`docs/features/README.md`
 
 ## 應用程式流程
 
 ```
 App.tsx (路由控制)
 ├── Dashboard (儀表板)
-├── WordLibrary (新增單字/單字庫)
-├── PracticeMode (練習模式)
+├── WordLibrary (字庫管理/製作新卡片)
+├── LearningMode (兒童學習模式)
+│   ├── LearningModeTab (學習模式)
+│   ├── BlockModeTab (積木模式)
+│   └── DictationModeTab (聽寫模式)
 └── ErrorTest (錯誤測試，開發用)
 ```
 
-## 功能模組映射
-
-### 📊 儀表板 (Dashboard)
-
-**PRD 描述**：顯示學習統計、快速操作入口、雲端同步狀態
-
-**程式碼位置**：
-
-- 組件：`components/Dashboard.tsx` | File Hash: `4823728854a2491b3a69d9c31784d423`
-- 資料服務：`services/storageService.ts` (getStats)
-- 同步服務：`services/syncService.ts` (performSync, subscribeToSyncStatus)
-- 型別定義：`types.ts` (LearningStats, SyncStatus)
-
-**UI 元素**：
-
-- [UI] 統計卡片區塊
-  - 位置：`components/Dashboard.tsx:139-152`
-  - Hash: `3dce930bf36bdbd765f77165417591af`
-  - 功能：顯示總單字量、待複習數量
-
-- [UI] 開始複習按鈕
-  - 位置：`components/Dashboard.tsx:156-176`
-  - Hash: `8a19de2cc7bec5848442eb8a29cde840`
-  - 功能：導航到練習模式，顯示待複習數量
-
-- [UI] 製作新單字卡按鈕
-  - 位置：`components/Dashboard.tsx:178-188`
-  - Hash: `514b18b7428f73845286a2af7e4e556f`
-  - 功能：導航到新增單字頁面
-
-- [UI] 雲端同步按鈕
-  - 位置：`components/Dashboard.tsx:68-83`
-  - Hash: `ef211a3e365b6a369474436e4f35f9e7`
-  - 功能：手動觸發雲端同步，顯示同步狀態
-
-**關鍵功能**：
-
-- [FEAT] 載入學習統計
-  - 位置：`components/Dashboard.tsx:18-38`
-  - Hash: `5e6a45b5c6b61234d242ecc0e7bc650f`
-  - 功能：非同步載入並顯示學習統計資料
-
-- [UX] 雲端同步流程
-  - 位置：`components/Dashboard.tsx:40-45`
-  - Hash: `0641b30b62ff00194a4e67603506c64c`
-  - 功能：手動觸發雲端同步，處理認證流程
-
----
-
-### ➕ 新增單字 (Add Word / Word Library)
-
-**PRD 描述**：手動輸入、批次匯入、圖片識別、AI 分析、預覽選擇
-
-**UI 元素**：
-
-- 輸入方式選擇：手動輸入、批次匯入、圖片上傳
-- 單字列表與編輯
-- AI 分析進度顯示
-- 單字卡預覽與記憶圖像選擇
-
-**程式碼位置**：
-
-- 主組件：`components/WordLibrary.tsx`
-- 舊版組件：`components/AddWord.tsx`（已棄用，保留供參考）
-- 單字卡組件：`components/FlashcardComponent.tsx`
-- AI 服務：`services/geminiService.ts`
-  - `analyzeWord()` - 分析單字
-  - `extractWordsFromImage()` - 從圖片提取單字
-  - `generateMnemonicOptions()` - 生成記憶選項
-  - `generateMnemonicImage()` - 生成記憶圖像
-- 儲存服務：`services/storageService.ts` (saveCard, createNewCard, checkWordExists)
-- 型別定義：`types.ts` (WordAnalysis, Flashcard, MnemonicOption)
-
-**關鍵功能**：
-
-- 單字輸入與驗證
-- 圖片上傳與識別
-- AI 分析（音節、詞源、記憶提示）
-- 記憶圖像生成與選擇
-- 單字卡儲存
-
----
-
-### 📚 練習模式 (Practice Mode)
-
-**PRD 描述**：間隔重複學習、互動式單字卡、記憶程度評分
-
-**UI 元素**：
-
-- 單字卡翻轉動畫
-- 進度指示器
-- 記憶評分按鈕（1-5 分）
-- 完成統計
-
-**程式碼位置**：
-
-- 組件：`components/PracticeMode.tsx`
-- 單字卡組件：`components/FlashcardComponent.tsx`
-- 儲存服務：`services/storageService.ts`
-  - `getCards()` - 取得待複習單字
-  - `processReview()` - 處理複習結果（SuperMemo-2 演算法）
-  - `saveCard()` - 儲存更新後的單字卡
-- 型別定義：`types.ts` (Flashcard)
-
-**關鍵功能**：
-
-- 載入待複習單字（根據 nextReviewDate）
-- 單字卡翻轉互動
-- 記憶評分與演算法計算
-- 更新複習間隔與下次複習時間
-
----
-
-### 🎴 單字卡組件 (Flashcard Component)
-
-**PRD 描述**：可翻轉的單字卡，顯示單字資訊與記憶圖像
-
-**UI 元素**：
-
-- 正面：單字、IPA、音節標示
-- 背面：定義、例句、詞源分析、記憶提示、圖像
-- 翻轉動畫
-- 記憶圖像切換與重新生成
-
-**程式碼位置**：
-
-- 組件：`components/FlashcardComponent.tsx`
-- AI 服務：`services/geminiService.ts`
-  - `generateMnemonicOptions()` - 生成替代記憶選項
-  - `generateAlternativeStyleImage()` - 生成不同風格的圖像
-- 型別定義：`types.ts` (Flashcard, WordAnalysis, CardStatus)
-
-**關鍵功能**：
-
-- 單字卡翻轉動畫
-- 顯示單字分析資訊
-- 記憶圖像顯示與切換
-- 重新生成記憶圖像（不同風格）
-
----
-
-### 🧪 錯誤測試 (Error Test)
-
-**PRD 描述**：開發用工具，用於測試錯誤處理與 Sentry 整合
-
-**UI 元素**：
-
-- 錯誤觸發按鈕
-- Sentry 測試功能
-
-**程式碼位置**：
-
-- 組件：`components/ErrorTest.tsx`
-- 路由：`App.tsx` (僅在 `ENABLE_ERROR_TEST` 啟用時顯示)
-
-**關鍵功能**：
-
-- 測試錯誤捕獲
-- 驗證 Sentry 整合
-- 開發環境專用
-
-**注意**：此功能僅在開發環境啟用（由 `constants.ts` 中的 `ENABLE_ERROR_TEST` 控制）
+**詳細功能描述**：請參考 `docs/features/README.md`
 
 ---
 
@@ -185,17 +29,14 @@ App.tsx (路由控制)
 
 **功能**：
 
-- `analyzeWord()` - 分析單字（音節、詞源、記憶提示）
-- `generateMnemonicOptions()` - 生成多個記憶選項
-- `generateMnemonicImage()` - 生成記憶圖像
-- `generateAlternativeStyleImage()` - 生成不同風格的圖像
-- `generateAlternativeStyleOptions()` - 生成不同風格的記憶選項
+- `analyzeWord()` - 分析單字（音節、詞源、例句，適合小三學生）
 - `extractWordsFromImage()` - 從圖片提取單字
 
 **使用的 AI 模型**：
 
 - `gemini-2.5-flash` - 文字分析
-- `gemini-2.5-flash-image` - 圖像生成
+
+**注意**：已移除記憶提示和圖像生成相關功能（兒童學習模式不需要）
 
 ---
 
@@ -261,6 +102,65 @@ App.tsx (路由控制)
 
 ---
 
+### 分組服務 (Level Service)
+
+**檔案**：`services/levelService.ts`
+
+**功能**：
+
+- `groupCardsByLevel()` - 將單字卡分組為不同的 Level
+- `getLevelForCard()` - 根據索引計算單字卡屬於哪個 Level
+- `getAllLevels()` - 獲取所有 Level 的資訊
+- `getCardsByLevel()` - 獲取指定 Level 的單字卡
+- `getTotalLevels()` - 獲取總共有多少個 Level
+
+**用途**：
+
+- 自動將單字以每10個一組進行分級
+- 支援 Level 選擇功能
+- 用於兒童學習模式的分組學習
+
+---
+
+### 語音服務 (Speech Service)
+
+**檔案**：`services/speechService.ts`
+
+**功能**：
+
+- `loadVoices()` - 載入可用語音列表
+- `getAvailableVoices()` - 獲取所有可用語音
+- `findDefaultEnglishVoice()` - 尋找預設的英文語音
+- `speakWord()` - 播放單字發音
+- `stopSpeaking()` - 停止當前播放的語音
+- `isSpeechSynthesisSupported()` - 檢查瀏覽器是否支援語音合成
+
+**用途**：
+
+- 使用瀏覽器的 SpeechSynthesis API
+- 提供語音選擇功能
+- 用於兒童學習模式的語音發音
+
+---
+
+### 音效服務 (Sound Service)
+
+**檔案**：`services/soundService.ts`
+
+**功能**：
+
+- `playCorrectSound()` - 播放答對音效（上升音調）
+- `playWrongSound()` - 播放錯誤音效（下降音調）
+- `isWebAudioSupported()` - 檢查瀏覽器是否支援 Web Audio API
+
+**用途**：
+
+- 使用 Web Audio API 生成音效
+- 在答題正確時提供音效反饋
+- 用於兒童學習模式的聽寫和積木模式
+
+---
+
 ### 資料遷移服務 (Migration Service)
 
 **檔案**：`services/migrationService.ts`
@@ -282,6 +182,7 @@ App.tsx (路由控制)
 
 - Version 1: 初始版本
 - Version 2: 新增英文單字註解格式到記憶提示
+- Version 3: 移除記憶提示和圖像相關欄位（兒童學習模式）
 
 ---
 
@@ -311,8 +212,6 @@ App.tsx (路由控制)
   id: string;
   word: string;
   data: WordAnalysis;  // AI 分析結果
-  imageUrl?: string;   // 記憶圖像（Base64）
-  imagePrompt?: string; // 圖像生成提示
   // 間隔重複學習資料
   interval: number;
   repetition: number;
@@ -321,6 +220,9 @@ App.tsx (路由控制)
   // 同步元資料
   updatedAt: number;
   isDeleted?: boolean;
+  // 遷移與狀態
+  dataVersion?: number;
+  status?: CardStatus;
 }
 ```
 
@@ -329,7 +231,7 @@ App.tsx (路由控制)
 ```typescript
 {
   word: string;
-  definition: string;        // 繁體中文定義
+  definition: string;        // 繁體中文定義（適合小三學生）
   ipa: string;              // IPA 音標
   syllables: string[];      // 音節拆解
   stressIndex: number;      // 重音位置
@@ -338,44 +240,33 @@ App.tsx (路由控制)
     meaning: string;
     type: 'prefix' | 'root' | 'suffix';
   }>;
-  sentence: string;         // 例句
+  sentence: string;         // 例句（適合小三學生）
   sentenceTranslation: string;
-  mnemonicHint: string;     // 記憶提示
-  imagePrompt?: string;     // 圖像生成提示
+}
+```
+
+### LearningMode
+
+```typescript
+enum LearningMode {
+  LEARNING = 'learning',    // 學習模式
+  BLOCK = 'block',          // 積木模式
+  DICTATION = 'dictation'   // 聽寫模式
+}
+```
+
+### LearningLevel
+
+```typescript
+{
+  level: number;            // Level 編號 (1, 2, 3...)
+  cards: Flashcard[];       // 該 Level 的單字卡
 }
 ```
 
 ---
 
-## 常見任務與對應檔案
-
-### 修改儀表板統計顯示
-
-→ `components/Dashboard.tsx` + `services/storageService.ts` (getStats)
-
-### 調整 AI 分析提示詞
-
-→ `services/geminiService.ts` (analyzeWord, generateMnemonicOptions)
-
-### 修改單字卡樣式
-
-→ `components/FlashcardComponent.tsx`
-
-### 調整間隔重複演算法
-
-→ `services/storageService.ts` (processReview)
-
-### 新增單字輸入方式
-
-→ `components/WordLibrary.tsx`
-
-### 修改雲端同步邏輯
-
-→ `services/syncService.ts` + `services/driveService.ts`
-
-### 調整練習模式流程
-
-→ `components/PracticeMode.tsx`
+**常見任務與對應檔案**：請參考 `docs/features/README.md`
 
 ---
 
@@ -395,6 +286,12 @@ enum AppView {
 
 **路由控制**：`App.tsx` (renderView 方法)
 
+**瀏覽器歷史記錄整合**：
+- 使用 URL hash 來表示當前視圖（例如：`#/dashboard`）
+- 整合 `history.pushState` 和 `popstate` 事件，支援瀏覽器前進/後退按鈕
+- 導航函數 `navigate()` 會同時更新應用狀態和瀏覽器歷史記錄
+- 支援直接訪問帶有 hash 的 URL，會自動載入對應視圖
+
 ---
 
 ## 常數與設定
@@ -411,12 +308,14 @@ enum AppView {
 
 ## 更新指南
 
-當新增功能或修改現有功能時，請更新此文件：
+當新增服務或修改資料模型時，請更新此文件：
 
-1. 在對應的功能模組下新增描述
-2. 列出相關的 UI 元素
+1. 在「服務層架構」區段新增或更新服務描述
+2. 在「資料模型」區段更新型別定義
 3. 標註所有相關的程式碼檔案
-4. 說明關鍵功能點
+4. 說明技術實現細節
+
+**功能相關更新**：請更新 `docs/features/README.md`
 
 ---
 
@@ -438,34 +337,33 @@ AI Agent 會根據 `.cursor/rules/architecture-maintenance.mdc` 中的規則自�
 
 ### 檢查工具
 
-使用以下命令檢查 `ARCHITECTURE.md` 是否與程式碼同步：
+使用以下命令檢查架構文檔是否與程式碼同步：
 
 ```bash
 npm run check-architecture
 ```
 
-或直接執行：
-
-```bash
-node scripts/check-architecture.js
-```
-
 **檢查內容**：
 
 - 掃描 `components/` 和 `services/` 目錄下的所有檔案
-- 檢查是否有未記錄的檔案
-- 檢查是否有未記錄的公開函數
+- 檢查 `ARCHITECTURE.md` 和 `docs/features/README.md` 是否同步
+- 檢查是否有未記錄的檔案和函數
 
 **輸出說明**：
 
 - ✅ 綠色：文檔已同步
 - ⚠️ 黃色：發現未記錄的項目，需要更新文檔
 
+**文檔分工**：
+
+- `ARCHITECTURE.md` - 服務層架構、資料模型、技術細節
+- `docs/features/README.md` - 功能描述、UI 元素、使用者流程
+
 ### 維護流程
 
-1. **開發時**：AI Agent 會根據規則自動檢查並更新
+1. **開發時**：AI Agent 會根據規則自動檢查並更新兩個文檔
 2. **提交前**：執行 `npm run check-architecture` 確認同步
-3. **Code Review**：確認 `ARCHITECTURE.md` 已更新
+3. **Code Review**：確認 `ARCHITECTURE.md` 和 `docs/features/README.md` 已更新
 
 ---
 

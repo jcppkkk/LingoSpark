@@ -9,9 +9,11 @@ import { Flashcard } from '../types';
  * Migration History:
  * - Version 1: Initial version (no migration needed)
  * - Version 2: Add English word annotations to mnemonic hints
+ * - Version 3: Remove mnemonic hints and image-related fields (兒童學習模式)
+ * - Version 4: Remove mnemonic hints but restore image-related fields (保留圖片功能)
  */
 
-const CURRENT_DATA_VERSION = 2;
+const CURRENT_DATA_VERSION = 4;
 
 /**
  * Get the current data version
@@ -58,6 +60,10 @@ const applyMigration = (card: Flashcard, targetVersion: number): Flashcard => {
   switch (targetVersion) {
     case 2:
       return migrationToV2(card);
+    case 3:
+      return migrationToV3(card);
+    case 4:
+      return migrationToV4(card);
     default:
       console.warn(`Unknown migration version: ${targetVersion}`);
       return card;
@@ -78,6 +84,63 @@ const migrationToV2 = (card: Flashcard): Flashcard => {
   // No data transformation needed - old cards without annotations are still valid
   // The new format will be applied when cards are regenerated
   return card;
+};
+
+/**
+ * Migration to Version 3: Remove mnemonic hints and image-related fields
+ * 
+ * This migration removes:
+ * - mnemonicHint from WordAnalysis
+ * - imagePrompt from WordAnalysis
+ * - imageUrl from Flashcard
+ * - imagePrompt from Flashcard
+ * 
+ * These fields are no longer needed for the children's learning mode.
+ */
+const migrationToV3 = (card: Flashcard): Flashcard => {
+  // Remove imageUrl and imagePrompt from Flashcard
+  const { imageUrl, imagePrompt, ...cardWithoutImages } = card;
+  
+  // Remove mnemonicHint and imagePrompt from WordAnalysis
+  const { mnemonicHint, imagePrompt: dataImagePrompt, ...dataWithoutMnemonic } = card.data;
+  
+  return {
+    ...cardWithoutImages,
+    data: dataWithoutMnemonic
+  };
+};
+
+/**
+ * Migration to Version 4: Remove mnemonic hints but restore image-related fields
+ * 
+ * This migration:
+ * - Removes mnemonicHint from WordAnalysis (if exists)
+ * - Preserves imageUrl and imagePrompt in Flashcard (if they exist)
+ * - Preserves imagePrompt in WordAnalysis (if it exists)
+ * 
+ * Note: Cards that were migrated through V3 will have lost their imageUrl and imagePrompt.
+ * These will be regenerated when the card is updated or re-analyzed.
+ * 
+ * This allows image generation while removing memory hint text.
+ */
+const migrationToV4 = (card: Flashcard): Flashcard => {
+  // Remove mnemonicHint from WordAnalysis if it exists
+  const { mnemonicHint, ...dataWithoutMnemonic } = card.data;
+  
+  // Preserve imagePrompt in data if it exists
+  // If it was removed in V3, it will be added when the card is re-analyzed
+  const migratedData = {
+    ...dataWithoutMnemonic,
+    // imagePrompt will be preserved if it exists, or added by analyzeWord when card is updated
+  };
+  
+  // Preserve imageUrl and imagePrompt in Flashcard if they exist
+  // If they were removed in V3, they will be regenerated when the card is updated
+  return {
+    ...card,
+    data: migratedData
+    // imageUrl and imagePrompt in Flashcard are preserved if they exist
+  };
 };
 
 /**

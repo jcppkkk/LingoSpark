@@ -13,7 +13,9 @@ import {
   LayoutDashboard,
   Camera,
   Cloud,
-  CloudLightning
+  CloudLightning,
+  ArrowLeft,
+  X
 } from 'lucide-react';
 
 export const Icons = {
@@ -32,7 +34,9 @@ export const Icons = {
   Book: BookOpen,
   Camera: Camera,
   Cloud: Cloud,
-  Sync: CloudLightning
+  Sync: CloudLightning,
+  ArrowLeft: ArrowLeft,
+  X: X
 };
 
 export const APP_NAME = "LingoSpark";

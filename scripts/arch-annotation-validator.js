@@ -194,7 +194,7 @@ async function validateAnnotations() {
       console.log(`   建議添加 @ARCH 註解標記\n`);
     }
     console.log('💡 提示：添加註解可以幫助追蹤 PRD/UX/UI 變更');
-    console.log('   參考：docs/ARCHITECTURE_ANNOTATION_EXAMPLE.md\n');
+    console.log('   參考：docs/annotations/examples.md\n');
   }
   
   if (issues.length > 0) {
@@ -205,12 +205,100 @@ async function validateAnnotations() {
       console.log(`   必須添加 @ARCH 註解標記\n`);
     }
     console.log('💡 提示：請添加註解後再提交');
-    console.log('   參考：docs/ARCHITECTURE_ANNOTATION_EXAMPLE.md\n');
+    console.log('   參考：docs/annotations/examples.md\n');
     return 1;
   }
   
-  if (warnings.length === 0 && issues.length === 0) {
-    // 檢查是否有註解但 hash 不匹配
+  // 檢查註解格式錯誤（START/END 不匹配）
+  // 在 error 模式下，檢查所有需要註解的檔案
+  if (activePhase.strictness === 'error') {
+    try {
+      // 獲取所有需要檢查的檔案（不僅是變更的檔案）
+      const componentsDir = path.join(__dirname, '..', 'components');
+      const servicesDir = path.join(__dirname, '..', 'services');
+      const filesToCheck = [];
+      
+      // 如果 phase3 是 active 且 components 是 "*"，檢查所有檔案
+      if (activePhase.components.includes('*')) {
+        if (fs.existsSync(componentsDir)) {
+          const componentFiles = fs.readdirSync(componentsDir)
+            .filter(f => f.endsWith('.tsx') || f.endsWith('.ts'))
+            .map(f => `components/${f}`);
+          filesToCheck.push(...componentFiles);
+        }
+        if (fs.existsSync(servicesDir)) {
+          const serviceFiles = fs.readdirSync(servicesDir)
+            .filter(f => f.endsWith('.tsx') || f.endsWith('.ts'))
+            .map(f => `services/${f}`);
+          filesToCheck.push(...serviceFiles);
+        }
+      } else {
+        // 只檢查變更的檔案
+        filesToCheck.push(...allFiles);
+      }
+      
+      // 檢查所有檔案的格式錯誤
+      for (const file of filesToCheck) {
+        if (!needsAnnotation(file, config)) {
+          continue;
+        }
+        
+        // 讀取檔案內容檢查格式錯誤
+        const fullPath = path.join(__dirname, '..', file);
+        if (!fs.existsSync(fullPath)) {
+          continue;
+        }
+        
+        const content = fs.readFileSync(fullPath, 'utf-8');
+        const lines = content.split('\n');
+        const startBlocks = new Map();
+        const formatErrors = [];
+        
+        // 檢查所有註解標記
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          const startMatch = line.match(/\/\/\s*@ARCH:START\s+(.+)/) || 
+                           line.match(/\{\/\*\s*@ARCH:START\s+(.+?)\s*\*\/\}/);
+          const endMatch = line.match(/\/\/\s*@ARCH:END\s+(.+)/) || 
+                          line.match(/\{\/\*\s*@ARCH:END\s+(.+?)\s*\*\/\}/);
+          
+          if (startMatch) {
+            const key = startMatch[1].trim();
+            startBlocks.set(key, i + 1);
+          } else if (endMatch) {
+            const key = endMatch[1].trim();
+            if (!startBlocks.has(key)) {
+              formatErrors.push({
+                file,
+                line: i + 1,
+                message: `找不到對應的 START 標記: ${line.trim()}`
+              });
+            } else {
+              startBlocks.delete(key);
+            }
+          }
+        }
+        
+        // 如果有格式錯誤，在 error 模式下視為錯誤
+        if (formatErrors.length > 0) {
+          for (const error of formatErrors) {
+            issues.push({
+              file: error.file,
+              changeTypes: ['格式錯誤'],
+              phase: activePhase.name,
+              strictness: activePhase.strictness,
+              message: error.message,
+              line: error.line
+            });
+          }
+        }
+      }
+    } catch (error) {
+      // 忽略 import 錯誤，但不影響其他檢查
+      console.warn('⚠️  無法檢查註解格式:', error.message);
+    }
+  } else if (warnings.length === 0 && issues.length === 0) {
+    // 在 warning 模式下，只給提示
     try {
       const { scanAnnotations } = await import('./arch-annotation-scanner.js');
       const scanResults = scanAnnotations();
@@ -221,6 +309,20 @@ async function validateAnnotations() {
       }
     } catch (error) {
       // 忽略 import 錯誤
+    }
+  }
+  
+  // 如果有新的格式錯誤，重新輸出
+  if (issues.length > 0) {
+    const formatErrors = issues.filter(i => i.changeTypes && i.changeTypes.includes('格式錯誤'));
+    if (formatErrors.length > 0) {
+      console.log('\n❌ ARCHITECTURE 註解格式錯誤：\n');
+      for (const { file, message, line } of formatErrors) {
+        console.log(`   ${file}:${line || ''}`);
+        console.log(`   ${message}\n`);
+      }
+      console.log('💡 提示：請修復註解格式錯誤（確保每個 @ARCH:END 都有對應的 @ARCH:START）');
+      console.log('   參考：docs/annotations/examples.md\n');
     }
   }
   

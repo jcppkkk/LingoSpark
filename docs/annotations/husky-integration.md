@@ -2,7 +2,7 @@
 
 ## 概述
 
-基於 Husky 的漸進式推廣方案，透過 Git hooks 自動檢查和推進 PRD/UX/UI 註解標記範圍。
+基於 Husky 的註解檢查系統，透過 Git hooks 自動檢查所有組件的 PRD/UX/UI 註解標記。系統已全面推廣，所有組件變更都需要添加對應的註解，否則會阻止提交。
 
 ## 系統架構
 
@@ -15,7 +15,9 @@ arch-annotation-validator.js
     ↓
 檢查變更檔案是否需要註解
     ↓
-根據階段配置決定警告/錯誤
+檢查是否有註解標記
+    ↓
+檢查註解格式（START/END 配對）
     ↓
 允許/阻止提交
 ```
@@ -41,7 +43,7 @@ node scripts/setup-husky.js
 編輯 `.arch-annotation-config.json` 來設定：
 
 - 啟用/停用系統
-- 設定當前階段
+- 設定檢查範圍（components/services）
 - 設定嚴格模式
 - 設定排除規則
 
@@ -55,35 +57,24 @@ node scripts/setup-husky.js
   "mode": "progressive",
   "strictMode": false,
   "phases": {
-    "phase1": {
-      "name": "試點階段",
+    "phase3": {
+      "name": "全面推廣",
       "status": "active",
-      "components": ["Dashboard"],
-      "strictness": "warning"
+      "components": ["*"],
+      "strictness": "error"
     }
   }
 }
 ```
 
-### 階段配置
+### 當前配置狀態
 
-#### Phase 1: 試點階段（當前）
+系統已全面啟用註解檢查：
 
-- **目標組件**：Dashboard
-- **嚴格度**：warning（僅警告，不阻止提交）
-- **目的**：驗證系統運作，收集反饋
-
-#### Phase 2: 擴展階段
-
-- **目標組件**：Dashboard, WordLibrary, PracticeMode
-- **嚴格度**：warning（仍為警告模式）
-- **目的**：擴展到主要組件
-
-#### Phase 3: 全面推廣
-
-- **目標組件**：所有組件（\*）
-- **嚴格度**：error（阻止提交）
-- **目的**：確保所有變更都有註解
+- **檢查範圍**：所有 `components/` 和 `services/` 目錄下的 `.tsx` 和 `.ts` 檔案
+- **嚴格度**：error（所有變更都必須有註解，否則阻止提交）
+- **格式檢查**：啟用格式錯誤檢查（START/END 不匹配會阻止提交）
+- **排除規則**：測試檔案（`*.test.tsx`, `*.test.ts`, `*.spec.tsx`, `*.spec.ts`）自動排除
 
 ## 使用流程
 
@@ -96,22 +87,24 @@ node scripts/setup-husky.js
 ### Pre-commit Hook 自動執行
 
 1. **檢查變更檔案**：掃描 staged 檔案
-2. **判斷是否需要註解**：根據配置和階段
+2. **判斷是否需要註解**：所有 `components/` 和 `services/` 目錄下的 `.tsx` 和 `.ts` 檔案都需要註解
 3. **檢測變更類型**：UI/FEAT/UX
 4. **檢查是否有註解**：掃描檔案內容
-5. **輸出結果**：
-   - 如果有註解：通過
-   - 如果沒有註解且為警告模式：顯示警告，允許提交
-   - 如果沒有註解且為錯誤模式：阻止提交
+5. **檢查註解格式**：驗證 START/END 配對是否正確
+6. **輸出結果**：
+   - 如果有註解且格式正確：通過
+   - 如果沒有註解：阻止提交
+   - 如果格式錯誤（START/END 不匹配）：阻止提交
 
 ### 添加註解
 
-如果收到警告或錯誤：
+如果提交被阻止：
 
-1. **查看提示**：了解需要添加的註解類型
-2. **參考範例**：`docs/ARCHITECTURE_ANNOTATION_EXAMPLE.md`
+1. **查看錯誤訊息**：了解需要添加的註解類型或格式問題
+2. **參考範例**：`docs/annotations/examples.md`
 3. **添加註解**：在對應的程式碼區塊添加 `@ARCH` 註解
-4. **重新提交**：`git commit`
+4. **修復格式錯誤**：確保 START/END 配對正確
+5. **重新提交**：`git commit`
 
 ## 註解標記規則
 
@@ -133,67 +126,35 @@ node scripts/setup-husky.js
 - **UX**：使用者體驗流程
   - 互動流程、狀態管理、導航等
 
-## 漸進式推廣策略
+## 系統狀態
 
-### 階段 1：試點（1-2 週）
+### 註解覆蓋統計
 
-**目標**：
+- **總組件數**：10 個
+- **總註解標記數**：79 個
+- **主要組件覆蓋**：
+  - Dashboard: 11 個標記
+  - WordLibrary: 12 個標記
+  - LearningMode: 6 個標記
+  - BlockModeTab: 15 個標記
+  - DictationModeTab: 13 個標記
+  - FlashcardComponent: 9 個標記
+  - 其他組件：13 個標記
 
-- 在 Dashboard 組件中驗證系統
-- 收集使用反饋
-- 調整規則和工具
+### 系統功能
 
-**行動**：
+- ✅ Pre-commit hook 已配置並運作
+- ✅ 格式錯誤檢查已啟用（START/END 不匹配會報錯並阻止提交）
+- ✅ 自動生成工具可用（`npm run arch:generate`）
+- ✅ 掃描和驗證工具正常運作
+- ✅ 所有組件變更都需要註解（error 模式）
 
-1. 在 Dashboard 組件中添加註解標記
-2. 測試 pre-commit hook
-3. 收集反饋並調整
+### 維護指南
 
-**成功標準**：
-
-- 系統運作正常
-- 開發者接受度良好
-- 註解覆蓋率達到 80%+
-
-### 階段 2：擴展（2-4 週）
-
-**目標**：
-
-- 擴展到主要組件
-- 提高註解覆蓋率
-- 建立最佳實踐
-
-**行動**：
-
-1. 更新配置到 phase2
-2. 為主要組件添加註解
-3. 建立註解範例庫
-
-**成功標準**：
-
-- 主要組件註解覆蓋率 80%+
-- 開發者熟悉註解格式
-- 工具穩定運作
-
-### 階段 3：全面推廣（持續）
-
-**目標**：
-
-- 所有組件都需要註解
-- 錯誤模式確保品質
-- 自動化維護流程
-
-**行動**：
-
-1. 更新配置到 phase3
-2. 啟用錯誤模式
-3. 建立自動化工具
-
-**成功標準**：
-
-- 整體註解覆蓋率 90%+
-- 所有變更都有對應註解
-- 文檔與程式碼完全同步
+1. **持續監控**：定期執行 `npm run arch:check` 檢查 hash 同步狀態
+2. **格式規範**：確保所有新增註解都遵循 START/END 配對規則
+3. **文檔更新**：變更功能時同步更新 `ARCHITECTURE.md` 中的 hash
+4. **工具維護**：保持驗證工具和掃描工具的更新
 
 ## 工具命令
 
@@ -248,7 +209,7 @@ git commit --no-verify -m "..."
 
 1. 檢查 `.arch-annotation-config.json` 中的排除規則
 2. 更新配置添加排除模式
-3. 檢查階段配置是否正確
+3. 確認當前配置是否正確
 
 ### 無法提交
 
@@ -257,8 +218,20 @@ git commit --no-verify -m "..."
 **解決**：
 
 1. 添加必要的註解標記
-2. 或暫時調整配置為警告模式（不建議）
-3. 或使用 `--no-verify`（不建議）
+2. 檢查格式錯誤（START/END 不匹配）並修復
+3. 或暫時調整配置為警告模式（不建議）
+4. 或使用 `--no-verify`（不建議）
+
+### 格式錯誤
+
+**問題**：驗證工具報告「找不到對應的 START 標記」
+
+**解決**：
+
+1. 確保每個 `@ARCH:END` 都有對應的 `@ARCH:START`
+2. 檢查 START 和 END 的註解內容是否完全一致
+3. 在 error 模式下，格式錯誤會阻止提交
+4. 使用 `npm run arch:scan <檔案>` 檢查註解格式
 
 ## 最佳實踐
 
@@ -318,7 +291,7 @@ git commit --no-verify -m "..."
 
 ## 相關文檔
 
-- `docs/ARCHITECTURE_ANNOTATION_SYSTEM.md` - 註解系統說明
-- `docs/ARCHITECTURE_ANNOTATION_EXAMPLE.md` - 使用範例
+- [註解系統說明](./system.md) - 註解系統說明
+- [使用範例](./examples.md) - 使用範例
 - `.arch-annotation-config.json` - 配置檔案
 - `.cursor/rules/architecture-maintenance.mdc` - AI Agent 規則

@@ -1,6 +1,6 @@
 ---
 alwaysApply: true
-description: ARCHITECTURE.md 自動維護規則 - 確保架構文檔與程式碼保持同步
+description: 架構文檔自動維護規則 - 確保 ARCHITECTURE.md 和 docs/features/README.md 與程式碼保持同步
 applicableFiles:
   - "*.tsx"
   - "*.ts"
@@ -8,9 +8,14 @@ applicableFiles:
   - "*.css"
 ---
 
-# ARCHITECTURE.md 自動維護規則
+# 架構文檔自動維護規則
 
-當進行以下操作時，**必須**檢查並更新 `ARCHITECTURE.md`：
+當進行以下操作時，**必須**檢查並更新 `ARCHITECTURE.md` 和 `docs/features/README.md`：
+
+**文檔分工**：
+
+- `ARCHITECTURE.md` - 架構層面：服務層、資料模型、技術細節
+- `docs/features/README.md` - 功能層面：功能描述、UI 元素、使用者流程
 
 ## 觸發更新的情況
 
@@ -22,9 +27,9 @@ applicableFiles:
 
 **更新要求**：
 
-- 在「功能模組映射」區段新增對應的功能描述
+- 在 `docs/features/README.md` 的「功能列表」區段新增功能描述
 - 列出 UI 元素、程式碼位置、關鍵功能
-- 更新「應用程式流程」樹狀圖
+- 在 `ARCHITECTURE.md` 的「應用程式流程」區段更新樹狀圖
 - **添加 @ARCH 註解標記**（根據 `.arch-annotation-config.json` 配置）
 
 ### 2. 新增或修改服務
@@ -35,9 +40,9 @@ applicableFiles:
 
 **更新要求**：
 
-- 在「服務層架構」區段更新或新增服務描述
+- 在 `ARCHITECTURE.md` 的「服務層架構」區段更新或新增服務描述
 - 列出所有公開函數及其功能
-- 更新相關功能模組的「程式碼位置」區段
+- 在 `docs/features/README.md` 中更新相關功能的「程式碼位置」區段
 
 ### 3. 修改資料模型
 
@@ -47,8 +52,9 @@ applicableFiles:
 
 **更新要求**：
 
-- 在「資料模型」區段更新型別定義
+- 在 `ARCHITECTURE.md` 的「資料模型」區段更新型別定義
 - 說明變更的欄位及其用途
+- 如果影響功能，同時更新 `docs/features/README.md`
 
 ### 4. 新增功能或修改現有功能
 
@@ -58,7 +64,7 @@ applicableFiles:
 
 **更新要求**：
 
-- 更新對應功能模組的「PRD 描述」和「關鍵功能」
+- 在 `docs/features/README.md` 中更新對應功能的「功能描述」和「關鍵功能」
 - 更新「常見任務與對應檔案」區段（如適用）
 - **添加或更新 @ARCH 註解標記**（UI/FEAT/UX 變更）
 
@@ -69,34 +75,138 @@ applicableFiles:
 
 **更新要求**：
 
-- 更新「路由與視圖」區段
-- 更新「應用程式流程」樹狀圖
+- 在 `ARCHITECTURE.md` 更新「路由與視圖」區段
+- 在 `ARCHITECTURE.md` 更新「應用程式流程」樹狀圖
+- 在 `docs/features/README.md` 更新「路由與視圖」區段（如適用）
 
-## 更新流程
+## 標準工作流程
 
-當檢測到上述變更時，請遵循以下步驟：
+當檢測到上述變更時，**必須**遵循以下標準流程：
 
-1. **識別變更類型**：判斷屬於哪一類觸發情況
-2. **定位相關區段**：在 `ARCHITECTURE.md` 中找到需要更新的區段
-3. **更新內容**：
-   - 保持現有格式和結構
-   - 使用一致的標記符號（📊 ➕ 📚 🎴 等）
-   - 確保檔案路徑正確
-   - 更新「常見任務與對應檔案」區段（如適用）
-4. **驗證完整性**：
-   - 檢查所有相關檔案路徑是否正確
-   - 確認功能描述與實際程式碼一致
-   - 確保沒有遺漏新增的功能點
+### 步驟 1: 開發程式碼
 
-## 檢查清單
+1. **創建或修改檔案**
+2. **添加 @ARCH 註解標記**（根據變更類型）
+   - 新增組件：`@ARCH:START/END`
+   - UI 變更：`@ARCH: Component - UI: 功能名稱`
+   - 功能變更：`@ARCH: Component - FEAT: 功能名稱`
+   - UX 變更：`@ARCH: Component - UX: 流程名稱`
 
-在提交變更前，確認：
+### 步驟 2: 更新文檔
 
-- [ ] 新增的組件/服務已在 `ARCHITECTURE.md` 中記錄
+**必須按照以下順序更新**：
+
+1. **更新 `docs/features/README.md`**（如果涉及功能）
+
+   - 在「功能列表」區段新增或更新功能描述
+   - 列出 UI 元素和關鍵功能
+   - 更新「常見任務與對應檔案」（如適用）
+
+2. **更新 `ARCHITECTURE.md`**（如果涉及架構）
+   - 服務層架構（新增服務時）
+   - 資料模型（修改 types.ts 時）
+   - 應用程式流程（新增路由時）
+   - 路由與視圖（新增路由時）
+
+### 步驟 3: 驗證
+
+**必須執行以下檢查**：
+
+1. **工作流程檢查**
+
+   ```bash
+   npm run workflow:check
+   ```
+
+   - 檢查是否添加了 @ARCH 註解
+   - 檢查文檔是否已更新
+
+2. **文檔同步檢查**
+
+   ```bash
+   npm run check-architecture
+   ```
+
+   - 檢查文檔是否與程式碼同步
+
+3. **註解驗證**
+   ```bash
+   npm run arch:validate
+   ```
+   - 驗證 @ARCH 註解格式正確
+
+### 步驟 4: 提交
+
+只有在所有檢查通過後才能提交：
+
+```bash
+git add .
+git commit -m "feat: 功能描述"
+```
+
+**Pre-commit Hook 會自動執行**：
+
+- `npm run arch:validate` - 註解驗證
+- `npm run check-architecture:enhanced` - 文檔同步檢查
+
+## 快速參考
+
+### 變更類型 → 文檔更新對應表
+
+| 變更類型     | @ARCH 註解 | docs/features/README.md | ARCHITECTURE.md |
+| ------------ | ---------- | ---------------- | --------------- |
+| 新增組件     | ✅ 必須    | ✅ 功能列表      | ✅ 應用程式流程 |
+| 新增服務     | ❌ 不需要  | ✅ 程式碼位置    | ✅ 服務層架構   |
+| 修改資料模型 | ❌ 不需要  | ❌               | ✅ 資料模型     |
+| 新增路由     | ❌ 不需要  | ✅ 路由與視圖    | ✅ 路由與視圖   |
+| UI 變更      | ✅ 必須    | ✅ UI 元素       | ❌              |
+| 功能變更     | ✅ 必須    | ✅ 關鍵功能      | ❌              |
+
+### 自動化工具
+
+使用以下工具協助工作流程：
+
+```bash
+# 分析變更並生成文檔更新建議
+npm run doc:update <檔案路徑>
+
+# 檢查工作流程規則
+npm run workflow:check
+
+# 檢查文檔同步
+npm run check-architecture
+
+# 驗證註解
+npm run arch:validate
+```
+
+## 強制檢查清單
+
+在提交變更前，**必須**確認以下所有項目：
+
+### 程式碼層面
+
+- [ ] 新增組件已添加 `@ARCH:START/END` 註解
+- [ ] UI/UX 變更已添加對應的 `@ARCH` 註解
+- [ ] 功能變更已添加 `@ARCH: FEAT` 註解
+
+### 文檔層面
+
+- [ ] 新增的組件已在 `docs/features/README.md` 中記錄（功能列表）
+- [ ] 新增的服務已在 `ARCHITECTURE.md` 中記錄（服務層架構）
+- [ ] 新增的功能已在 `docs/features/README.md` 中記錄（功能列表）
+- [ ] 資料模型變更已反映在 `ARCHITECTURE.md` 中（資料模型）
+- [ ] 路由變更已更新兩個文檔（路由與視圖）
+
+### 驗證層面
+
+- [ ] 執行 `npm run workflow:check` 通過
+- [ ] 執行 `npm run check-architecture` 通過
+- [ ] 執行 `npm run arch:validate` 通過
 - [ ] 檔案路徑正確且可訪問
 - [ ] 功能描述與實際實作一致
-- [ ] 相關的「常見任務」已更新（如適用）
-- [ ] 資料模型變更已反映在文檔中
+
+**注意**：Pre-commit Hook 會自動執行部分檢查，但建議在提交前手動執行所有檢查。
 
 ## 自動檢查提示
 
@@ -138,7 +248,7 @@ useEffect(() => { ... }, []);
 - `npm run arch:scan` - 掃描所有註解標記
 - `npm run arch:check` - 檢查 hash 同步狀態
 
-詳細說明請參考：`docs/ARCHITECTURE_ANNOTATION_EXAMPLE.md`
+詳細說明請參考：`docs/architecture/annotation-example.md`
 
 ## 範例
 
@@ -146,56 +256,56 @@ useEffect(() => { ... }, []);
 
 如果創建了 `components/NewFeature.tsx`：
 
-1. 在「功能模組映射」區段新增：
+1. 在 `docs/features/README.md` 的「功能列表」區段新增：
 
 ```markdown
 ### 🆕 新功能 (New Feature)
 
-**PRD 描述**：[功能描述]
-
-**UI 元素**：
-
-- [列出 UI 元素]
+**功能描述**：[功能描述]
 
 **程式碼位置**：
 
 - 組件：`components/NewFeature.tsx`
 - [相關服務]
 
+**UI 元素**：
+
+- [列出 UI 元素]
+
 **關鍵功能**：
 
 - [列出關鍵功能]
 ```
 
-2. 更新「應用程式流程」樹狀圖
-3. 更新「常見任務與對應檔案」區段（如適用）
+2. 在 `ARCHITECTURE.md` 更新「應用程式流程」樹狀圖
+3. 在 `docs/features/README.md` 更新「常見任務與對應檔案」區段（如適用）
 
 ### 範例 2：新增服務函數
 
 如果在 `services/geminiService.ts` 中新增 `newFunction()`：
 
-1. 在「AI 服務」區段的「功能」列表中添加：
+1. 在 `ARCHITECTURE.md` 的「AI 服務」區段的「功能」列表中添加：
 
 ```markdown
 - `newFunction()` - [功能描述]
 ```
 
-2. 如果該函數被某個組件使用，更新該組件的「程式碼位置」區段
+2. 如果該函數被某個組件使用，在 `docs/features/README.md` 中更新該功能的「程式碼位置」區段
 
 ## 注意事項
 
-- **不要**更新 `ARCHITECTURE.md` 的情況：
+- **不要**更新文檔的情況：
 
   - 僅修改純視覺樣式（顏色、字體大小、間距等，不影響功能或 UX）
   - 僅修復 bug 且不影響功能描述
   - 僅重構程式碼結構但功能不變
   - 僅更新註解或文檔字串
 
-- **必須**更新 `ARCHITECTURE.md` 的情況：
-  - 新增任何公開 API（export function/component）
-  - 修改使用者可見的功能
-  - 新增或修改資料結構
-  - 新增路由或視圖
+- **必須**更新文檔的情況：
+  - 新增任何公開 API（export function/component）→ 更新 `ARCHITECTURE.md` 和 `docs/features/README.md`
+  - 修改使用者可見的功能 → 更新 `docs/features/README.md`
+  - 新增或修改資料結構 → 更新 `ARCHITECTURE.md`
+  - 新增路由或視圖 → 更新 `ARCHITECTURE.md` 和 `docs/features/README.md`
 
 ### CSS 與樣式變更的處理
 

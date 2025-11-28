@@ -1,6 +1,22 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
+# 工作流程檢查
+echo "🔍 檢查工作流程規則..."
+npm run workflow:check
+
+# 如果工作流程檢查失敗，阻止提交
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ 提交被阻止：工作流程規則檢查失敗"
+  echo "💡 提示："
+  echo "   1. 新增組件必須添加 @ARCH 註解並更新 docs/features.md"
+  echo "   2. 新增服務必須更新 ARCHITECTURE.md"
+  echo "   3. 執行 npm run doc:update <檔案路徑> 獲取更新建議"
+  echo "   參考：docs/architecture/workflow.md"
+  exit 1
+fi
+
 # ARCHITECTURE 註解驗證
 echo "🔍 檢查 ARCHITECTURE 註解..."
 npm run arch:validate
@@ -14,5 +30,5 @@ if [ $? -ne 0 ]; then
 fi
 
 # 基礎架構檢查（可選，僅警告）
-echo "🔍 檢查 ARCHITECTURE.md 同步狀態..."
+echo "🔍 檢查架構文檔同步狀態..."
 npm run check-architecture:enhanced || true

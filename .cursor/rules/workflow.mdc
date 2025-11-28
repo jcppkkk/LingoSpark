@@ -1,0 +1,524 @@
+---
+alwaysApply: true
+description: 功能開發與文檔更新工作流程規則 - 從規劃到提交的完整流程規範
+applicableFiles:
+  - "*.tsx"
+  - "*.ts"
+  - "*.js"
+  - "*.css"
+---
+
+# 功能開發與文檔更新工作流程規則
+
+本文檔定義從規劃功能到提交代碼的完整工作流程規則。
+
+## 工作流程概覽
+
+```
+規劃功能（docs/plans/）
+  ↓
+實作過程中添加 @ARCH 註解（從開發開始就標記）
+  ↓
+開發程式碼
+  ↓
+完成功能
+  ↓
+改寫/整併到對應文檔（包含 @ARCH tags 映射）
+  ├── docs/features/*.md (功能描述)
+  ├── docs/annotations/*.md (註解系統相關)
+  ├── docs/maintenance/*.md (維護系統相關)
+  └── ARCHITECTURE.md (服務層/資料模型)
+  ↓
+執行檢查工具
+  ↓
+移除已完成的 plan 文件
+  ↓
+提交代碼
+```
+
+## 階段 1: 規劃與設計
+
+### 規則 1.1: 確定功能範圍
+
+**必須明確**：
+- 功能描述
+- UI/UX 需求
+- 技術實現方案
+
+### 規則 1.2: 識別影響範圍
+
+**必須識別**：
+- 需要新增哪些組件？
+- 需要新增哪些服務？
+- 需要修改哪些資料模型？
+- 是否需要新增路由？
+
+## 階段 2: 開發程式碼
+
+### 規則 2.1: 創建組件/服務
+
+**創建新組件時**：
+```bash
+touch components/NewFeature.tsx
+```
+
+**創建新服務時**：
+```bash
+touch services/newService.ts
+```
+
+### 規則 2.2: 立即添加 @ARCH 註解標記
+
+**必須從開發開始就標記**，不要等到最後才添加：
+
+```typescript
+// @ARCH:START NewFeature - UI: 主要功能區塊
+export default function NewFeature() {
+  // @ARCH: NewFeature - UI: 列表顯示
+  // ...
+  
+  // @ARCH: NewFeature - FEAT: 載入資料
+  useEffect(() => {
+    // ...
+  }, []);
+  
+  // @ARCH: NewFeature - UX: 新增項目流程
+  const handleAdd = () => {
+    // ...
+  };
+}
+// @ARCH:END NewFeature - UI: 主要功能區塊
+```
+
+**註解標記規則**：
+- 新增組件：`@ARCH:START/END` 標記整個組件
+- UI 變更：`@ARCH: Component - UI: 功能名稱`
+- 功能變更：`@ARCH: Component - FEAT: 功能名稱`
+- UX 變更：`@ARCH: Component - UX: 流程名稱`
+
+### 規則 2.3: 實現功能邏輯
+
+**必須同時進行**：
+- 編寫組件邏輯（同時添加對應的 @ARCH tags）
+- 實現服務函數
+- 更新資料模型（如需要）
+
+## 階段 3: 完成功能並整併到 docs/features/
+
+### 規則 3.1: 改寫或整併到 `docs/features/`
+
+**當功能開發完成時**：
+- 將 plan 中的內容改寫為功能文檔格式
+- 整併到對應的 `docs/features/*.md` 文件中
+- 記錄所有 @ARCH tags 的位置和 hash
+
+### 規則 3.2: 處理已完成的 plan
+
+**當 plan 中的所有項目都完成時，必須執行以下步驟**：
+
+1. **整理結果到對應文檔**：
+   - **功能相關**：更新或創建 `docs/features/*.md` 文件
+   - **註解系統相關**：更新 `docs/annotations/*.md` 文件
+   - **維護系統相關**：更新 `docs/maintenance/*.md` 文件
+   - **架構相關**：更新 `ARCHITECTURE.md`
+
+2. **移除已完成的 plan 文件**：
+   - 刪除 `docs/plans/` 目錄下已完成的 plan 文件
+   - 不要保留已完成計劃的歷史記錄（除非有特殊需求）
+
+**重要**：
+- ✅ 將所有實施結果整理到對應的文檔目錄
+- ✅ 確保文檔完整且準確
+- ✅ 移除已完成的 plan 文件（保持 plans 目錄只包含未完成的計劃）
+
+### 規則 3.3: 非 Plan 類文件的寫作原則
+
+**重要**：當將 plan 的實施結果整合到非 plan 類文件（如 `docs/annotations/*.md`、`docs/features/*.md`、`docs/maintenance/*.md` 等）時，必須遵循以下原則：
+
+#### 原則 1: 描述最終完成狀態，而非階段規劃
+
+❌ **錯誤**：在非 plan 類文件中描述階段規劃
+```markdown
+### 階段配置
+#### Phase 1: 試點階段（已完成 ✅）
+#### Phase 2: 擴展階段（已完成 ✅）
+#### Phase 3: 全面推廣（進行中 🚀）
+```
+
+✅ **正確**：描述最終完成狀態
+```markdown
+### 當前配置狀態
+系統已全面啟用註解檢查：
+- **檢查範圍**：所有 `components/` 和 `services/` 目錄下的檔案
+- **嚴格度**：error（所有變更都必須有註解，否則阻止提交）
+```
+
+#### 原則 2: 移除階段性描述，改為功能說明
+
+❌ **錯誤**：描述推廣策略和階段
+```markdown
+## 漸進式推廣策略
+系統採用三階段漸進式推廣策略：
+1. Phase 1（試點階段）：...
+2. Phase 2（擴展階段）：...
+3. Phase 3（全面推廣）：...
+```
+
+✅ **正確**：描述系統狀態和功能
+```markdown
+## 系統狀態
+### 系統功能
+- ✅ Pre-commit hook 已配置並運作
+- ✅ 格式錯誤檢查已啟用
+- ✅ 所有組件變更都需要註解
+```
+
+#### 原則 3: 使用現在時態，描述當前運作方式
+
+❌ **錯誤**：使用階段性描述
+```markdown
+系統目前處於 Phase 3（全面推廣）階段
+```
+
+✅ **正確**：使用現在時態描述當前狀態
+```markdown
+系統已全面啟用註解檢查
+```
+
+#### 檢查清單
+
+在整合 plan 結果到非 plan 類文件時，確認：
+
+- [ ] 已移除所有階段規劃描述（Phase 1、2、3 等）
+- [ ] 已改為描述最終完成狀態
+- [ ] 已移除「進行中」、「已完成」等階段性標記
+- [ ] 已使用現在時態描述當前運作方式
+- [ ] 已將「階段配置」改為「當前配置狀態」或「系統狀態」
+- [ ] 已將「實施結果」改為「系統功能」或「功能說明」
+- [ ] 已將「推廣策略」改為「系統運作方式」或「使用說明」
+
+## 階段 4: 更新文檔
+
+### 規則 4.1: 更新 `docs/features/README.md`
+
+**觸發條件**：
+- 新增組件或頁面
+- 新增功能或修改現有功能
+- UI/UX 變更
+- 新增路由
+
+**必須更新「功能列表」區段**：
+
+```markdown
+### 🆕 新功能名稱
+
+**功能描述**：[簡潔描述功能用途]
+
+**程式碼位置**：
+- 組件：`components/NewFeature.tsx`
+- 服務：`services/newService.ts`
+  - `functionName()` - 功能描述
+
+**UI 元素**：
+- [UI] 元素名稱
+  - 位置：`components/NewFeature.tsx:行號`
+  - 功能：功能說明
+
+**關鍵功能**：
+- [FEAT] 功能名稱
+  - 位置：`components/NewFeature.tsx:行號`
+  - 功能：功能說明
+```
+
+**如適用，更新「常見任務與對應檔案」**：
+
+```markdown
+### 執行新功能相關任務
+→ `components/NewFeature.tsx` + `services/newService.ts`
+```
+
+### 規則 4.2: 更新 `ARCHITECTURE.md`
+
+**觸發條件**：
+- 新增或修改服務
+- 修改資料模型
+- 新增路由或視圖
+- 新增組件（更新應用程式流程）
+
+**新增服務時**：在「服務層架構」區段新增
+
+```markdown
+### 新服務名稱 (Service Name)
+
+**檔案**：`services/newService.ts`
+
+**功能**：
+- `functionName()` - 功能描述
+```
+
+**修改資料模型時**：在「資料模型」區段更新
+
+```markdown
+### NewType
+
+```typescript
+{
+  field: type;
+  // ...
+}
+```
+```
+
+**新增路由時**：更新「路由與視圖」和「應用程式流程」
+
+### 規則 4.3: 文檔更新對應表
+
+| 變更類型 | @ARCH 註解 | docs/features/README.md | ARCHITECTURE.md | 檢查命令 |
+|---------|-----------|------------------|----------------|---------|
+| 新增組件 | ✅ 必須 | ✅ 功能列表 | ✅ 應用程式流程 | `workflow:check` |
+| 新增服務 | ❌ | ✅ 程式碼位置 | ✅ 服務層架構 | `workflow:check` |
+| 修改資料模型 | ❌ | ❌ | ✅ 資料模型 | `workflow:check` |
+| UI 變更 | ✅ 必須 | ✅ UI 元素 | ❌ | `arch:validate` |
+| UX 變更 | ✅ 必須 | ✅ 關鍵功能 | ❌ | `arch:validate` |
+| 新增路由 | ❌ | ✅ 路由與視圖 | ✅ 路由與視圖 | `check-architecture` |
+
+## 階段 5: 驗證與檢查
+
+### 規則 5.1: 執行檢查工具
+
+**必須執行以下檢查**：
+
+1. **工作流程檢查**
+   ```bash
+   npm run workflow:check
+   ```
+   - 檢查是否添加了 @ARCH 註解
+   - 檢查文檔是否已更新
+
+2. **文檔同步檢查**
+   ```bash
+   npm run check-architecture
+   ```
+   - 檢查文檔是否與程式碼同步
+
+3. **註解驗證**
+   ```bash
+   npm run arch:validate
+   ```
+   - 驗證 @ARCH 註解格式正確
+
+### 規則 5.2: 驗證文檔完整性
+
+**必須確認**：
+- [ ] 功能描述準確
+- [ ] 程式碼位置正確
+- [ ] UI 元素已列出
+- [ ] 關鍵功能已說明
+- [ ] 服務函數已記錄（如適用）
+
+### 規則 5.3: 使用自動化工具
+
+**可用的工具**：
+
+```bash
+# 分析變更並生成文檔更新建議
+npm run doc:update <檔案路徑>
+
+# 檢查工作流程規則
+npm run workflow:check
+
+# 檢查文檔同步
+npm run check-architecture
+
+# 驗證註解
+npm run arch:validate
+
+# 掃描 @ARCH 註解
+npm run arch:scan
+
+# 檢查 hash 同步
+npm run arch:check
+```
+
+## 階段 6: 提交代碼
+
+### 規則 6.1: Git 操作
+
+**提交前必須**：
+```bash
+git add .
+git commit -m "feat: 新增功能名稱"
+```
+
+### 規則 6.2: Pre-commit Hook 自動檢查
+
+**Husky 會自動執行**：
+- `npm run arch:validate` - 註解驗證（失敗會阻止提交）
+- `npm run check-architecture:enhanced` - 文檔同步檢查（僅警告，不阻止提交）
+- `npm run workflow:check` - 工作流程檢查（失敗會阻止提交）
+
+**注意**：如果檢查失敗，必須修復問題後重新提交，**不要使用 `--no-verify` 跳過檢查**。
+
+## 違規處理
+
+### 違規類型
+
+1. **嚴重違規**（阻止提交）
+   - 新增組件未添加 @ARCH 註解
+   - 新增組件未更新 docs/features/README.md
+   - 新增服務未更新 ARCHITECTURE.md
+   - 修改 types.ts 未更新資料模型
+
+2. **警告**（不阻止提交）
+   - 修改組件未添加 @ARCH 註解（建議）
+   - 文檔同步問題（建議）
+
+### 修復流程
+
+1. **查看錯誤訊息**
+   ```bash
+   npm run workflow:check
+   ```
+
+2. **獲取更新建議**
+   ```bash
+   npm run doc:update <檔案路徑>
+   ```
+
+3. **更新文檔**
+   - 根據建議更新對應文檔
+   - 參考本規則文檔
+
+4. **重新檢查**
+   ```bash
+   npm run workflow:check
+   ```
+
+## 最佳實踐
+
+### 規則 7.1: 開發時同步更新
+
+**不要等到最後才更新文檔**：
+- 邊開發邊更新，保持同步
+- 完成功能後立即更新文檔
+
+### 規則 7.2: 使用註解標記
+
+**充分利用 @ARCH 註解**：
+- 添加 @ARCH 註解幫助追蹤
+- 使用工具掃描和驗證
+
+### 規則 7.3: 定期檢查
+
+**提交前必須執行**：
+- 執行檢查工具
+- 定期審查文檔完整性
+
+### 規則 7.4: 保持格式一致
+
+**使用統一的標記符號**：
+- 保持文檔結構一致
+- 遵循既定的文檔模板
+
+## 範例流程
+
+### 範例：新增字庫管理功能
+
+1. **創建組件並添加註解**
+   ```typescript
+   // @ARCH:START WordLibrary - UI: 字庫管理介面
+   export default function WordLibrary() {
+     // ...
+   }
+   // @ARCH:END WordLibrary - UI: 字庫管理介面
+   ```
+
+2. **執行檢查**
+   ```bash
+   npm run workflow:check
+   # 會提示需要更新 docs/features/README.md
+   ```
+
+3. **獲取更新建議**
+   ```bash
+   npm run doc:update components/WordLibrary.tsx
+   ```
+
+4. **更新文檔**
+   - 更新 `docs/features/README.md`
+   - 更新 `ARCHITECTURE.md`
+
+5. **驗證**
+   ```bash
+   npm run workflow:check
+   npm run check-architecture
+   ```
+
+6. **提交**
+   ```bash
+   git add .
+   git commit -m "feat: 新增字庫管理功能"
+   ```
+
+## 故障排除
+
+### 問題：檢查工具報告未記錄但實際已記錄
+
+**解決**：
+- 檢查檔案路徑格式（使用反引號）
+- 確認函數名拼寫正確
+- 檢查是否在正確的區段中
+
+### 問題：不知道該更新哪個文檔
+
+**參考**：
+- 功能描述、UI 元素 → `docs/features/README.md`
+- 服務層、資料模型 → `ARCHITECTURE.md`
+- 詳細規則：`.cursor/rules/architecture-maintenance.mdc`
+
+### 問題：忘記更新文檔
+
+**預防**：
+- 使用 `npm run check-architecture` 檢查
+- Pre-commit hook 會自動提醒
+- 在 Code Review 時檢查
+
+## 注意事項
+
+### 不需要更新文檔的情況
+
+- 僅修改純視覺樣式（顏色、字體大小、間距等，不影響功能或 UX）
+- 僅修復 bug 且不影響功能描述
+- 僅重構程式碼結構但功能不變
+- 僅更新註解或文檔字串
+
+### 必須更新文檔的情況
+
+- 新增任何公開 API（export function/component）→ 更新 `ARCHITECTURE.md` 和 `docs/features/README.md`
+- 修改使用者可見的功能 → 更新 `docs/features/README.md`
+- 新增或修改資料結構 → 更新 `ARCHITECTURE.md`
+- 新增路由或視圖 → 更新 `ARCHITECTURE.md` 和 `docs/features/README.md`
+
+### CSS 與樣式變更的處理
+
+**CSS 檔案已包含在 `applicableFiles` 範圍內**，但需要根據變更類型判斷：
+
+- **純視覺調整**（如顏色、字體大小、間距等，不影響功能或 UX）：
+  - 不需要更新 `ARCHITECTURE.md`
+  - 不需要添加 @ARCH 註解標記
+
+- **影響 UI 結構或 UX 流程的樣式變更**（如響應式佈局、互動狀態、動畫效果、關鍵視覺元素）：
+  - 不需要更新 `ARCHITECTURE.md`（CSS 變更不影響架構文檔）
+  - **但需要在相關的 TSX 組件檔案中添加 @ARCH 註解標記**（UI/UX 變更）
+  - 例如：修改按鈕的 hover 狀態影響互動流程，應在組件中標記 `@ARCH: Component - UX: 按鈕互動狀態`
+  - 例如：新增響應式斷點影響佈局，應在組件中標記 `@ARCH: Component - UI: 響應式佈局`
+
+**判斷標準**：
+- 如果 CSS 變更影響了使用者的操作流程或互動方式 → 在組件中標記 `UX`
+- 如果 CSS 變更影響了 UI 元素的結構或佈局 → 在組件中標記 `UI`
+- 如果 CSS 變更僅是視覺美化，不影響功能或互動 → 無需標記
+
+## 維護責任
+
+- **AI Agent**：在進行上述變更時，自動檢查並更新文檔
+- **開發者**：在 code review 時確認文檔已同步更新

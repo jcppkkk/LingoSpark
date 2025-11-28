@@ -157,11 +157,16 @@ const handleManualSync = () => {
 
 ## 使用流程
 
+### 方式 1：手動添加註解
+
 1. **添加註解標記**：
 
-   ```bash
-   # 在程式碼中添加 @ARCH 註解
-   # @ARCH: Dashboard - UI: 統計卡片區塊
+   在程式碼中手動添加 `@ARCH` 註解：
+
+   ```typescript
+   // @ARCH: Dashboard - UI: 統計卡片區塊
+   // 或使用簡化格式
+   // @ARCH: Dashboard.UI.統計卡片區塊
    ```
 
 2. **掃描註解**：
@@ -182,14 +187,122 @@ const handleManualSync = () => {
    - 手動更新（或使用自動更新工具）
    - 添加位置和 Hash 資訊
 
-## 簡化格式（建議）
+### 方式 2：自動生成註解（推薦）
 
-也可以使用更簡潔的格式：
+使用 AI 自動生成註解可以大幅減少手動維護成本：
+
+1. **生成註解建議**：
+
+   ```bash
+   # 單一檔案 - 互動模式（推薦）
+   npm run arch:generate components/Dashboard.tsx --interactive
+
+   # 單一檔案 - 自動模式（直接添加所有建議）
+   npm run arch:generate components/Dashboard.tsx
+
+   # 整個目錄（遞迴掃描所有 .tsx 和 .ts 檔案）
+   npm run arch:generate components/
+
+   # 多個檔案或目錄
+   npm run arch:generate components/ services/
+   npm run arch:generate components/Dashboard.tsx components/WordLibrary.tsx
+   ```
+
+2. **審查建議**（互動模式）：
+
+   - 工具會顯示每個建議的類型、名稱、位置和描述
+   - 選擇接受 (y)、拒絕 (n) 或跳過 (s)
+   - 工具會自動插入接受的註解
+
+3. **驗證生成的註解**：
+
+   ```bash
+   npm run arch:scan components/Dashboard.tsx
+   npm run arch:check
+   ```
+
+**優點**：
+
+- 減少手動維護成本
+- 提高註解覆蓋率
+- 確保註解一致性
+- 支援兩種註解格式
+
+## 註解格式說明
+
+系統支援兩種註解格式，可以根據個人偏好選擇使用：
+
+### 格式 1：標準格式（舊格式）
+
+```typescript
+// @ARCH: Dashboard - UI: 統計卡片區塊
+// @ARCH: Dashboard - FEAT: 載入學習統計
+// @ARCH: Dashboard - UX: 雲端同步流程
+```
+
+**優點**：
+
+- 可讀性高，結構清晰
+- 使用破折號和冒號分隔，易於理解
+
+### 格式 2：簡化格式（新格式）
 
 ```typescript
 // @ARCH: Dashboard.UI.統計卡片
-// @ARCH: Dashboard.FEAT.載入統計
-// @ARCH: Dashboard.UX.雲端同步
+// @ARCH: Dashboard.FEAT.載入學習統計
+// @ARCH: Dashboard.UX.雲端同步流程
 ```
 
-這樣更簡潔，也更容易維護。
+**優點**：
+
+- 更簡潔，輸入更快
+- 更容易解析
+- 減少輸入錯誤
+
+### 格式選擇建議
+
+- **新專案或新註解**：建議使用簡化格式（格式 2）
+- **現有註解**：可以繼續使用標準格式，無需強制遷移
+- **兩種格式可以並存**：同一檔案中可以混用兩種格式
+
+### 區塊標記格式
+
+兩種格式都支援區塊標記：
+
+**標準格式**：
+
+```typescript
+// @ARCH:START Dashboard - UI: 統計卡片區塊
+<div>...</div>
+// @ARCH:END Dashboard - UI: 統計卡片區塊
+```
+
+**簡化格式**：
+
+```typescript
+// @ARCH:START Dashboard.UI.統計卡片
+<div>...</div>
+// @ARCH:END Dashboard.UI.統計卡片
+```
+
+### JSX 註解格式
+
+兩種格式都支援 JSX 註解：
+
+**標準格式**：
+
+```typescript
+{
+  /* @ARCH: Dashboard - UI: 開始複習按鈕 */
+}
+<button>...</button>;
+```
+
+**簡化格式**：
+
+```typescript
+{
+  /* @ARCH: Dashboard.UI.開始複習按鈕 */
+}
+<button>...</button>;
+```

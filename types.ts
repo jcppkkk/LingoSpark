@@ -13,16 +13,9 @@ export interface WordAnalysis {
   syllables: string[]; // e.g., ["in", "ter", "est", "ing"]
   stressIndex: number; // Which syllable index has primary stress
   roots: { part: string; meaning: string; type: 'prefix' | 'root' | 'suffix' }[];
-  sentence: string; // Example sentence
+  sentence: string; // Example sentence (適合小三學生)
   sentenceTranslation: string;
-  mnemonicHint: string; // Text suggestion for memory
-  imagePrompt?: string; // The specific visual description used for generation
-}
-
-export interface MnemonicOption {
-  imageUrl: string;
-  mnemonicHint: string;
-  imagePrompt: string;
+  imagePrompt?: string; // 圖像生成提示（用於生成圖片）
 }
 
 export enum CardStatus {
@@ -35,8 +28,8 @@ export interface Flashcard {
   id: string;
   word: string;
   data: WordAnalysis;
-  imageUrl?: string; // Base64 string (Optimized: stored separately in DB)
-  imagePrompt?: string; // Stored prompt for regeneration
+  imageUrl?: string; // Base64 string (圖片儲存在 DB 的 images store)
+  imagePrompt?: string; // 圖像生成提示（用於重新生成圖片）
   createdAt: number;
   
   // Spaced Repetition Data
@@ -64,4 +57,24 @@ export interface SyncStatus {
   isSyncing: boolean;
   lastSyncedAt: number | null;
   error: string | null;
+}
+
+// 學習模式相關類型
+export enum LearningMode {
+  LEARNING = 'learning',    // 學習模式
+  BLOCK = 'block',          // 積木模式
+  DICTATION = 'dictation'   // 聽寫模式
+}
+
+// 學習分組
+export interface LearningLevel {
+  level: number; // Level 編號 (1, 2, 3...)
+  cards: Flashcard[];
+}
+
+// 語音相關
+export interface VoiceOption {
+  voice: SpeechSynthesisVoice;
+  name: string;
+  lang: string;
 }

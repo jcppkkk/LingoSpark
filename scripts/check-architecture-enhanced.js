@@ -141,7 +141,7 @@ function checkInterfaceChanges(architectureContent) {
   const missingInterfaces = [];
   for (const iface of interfaces) {
     // 跳過一些內部使用的 interface
-    if (['DashboardProps', 'PracticeModeProps', 'WordLibraryProps', 'ErrorTestProps'].includes(iface)) {
+    if (['DashboardProps', 'WordLibraryProps', 'ErrorTestProps'].includes(iface)) {
       continue;
     }
     
@@ -306,7 +306,7 @@ function checkArchitectureSync() {
   
   // 新增檢查：UI 元素（僅對主要組件）
   const uiIssues = [];
-  const mainComponents = ['Dashboard', 'WordLibrary', 'PracticeMode', 'FlashcardComponent'];
+  const mainComponents = ['Dashboard', 'WordLibrary', 'LearningMode', 'FlashcardComponent'];
   for (const comp of mainComponents) {
     const compFile = `components/${comp}.tsx`;
     if (actualFiles.has(compFile)) {

@@ -97,8 +97,8 @@ npm run preview
 LingoSpark/
 ├── components/          # React 組件
 │   ├── Dashboard.tsx    # 儀表板
-│   ├── AddWord.tsx      # 新增單字頁面
-│   ├── PracticeMode.tsx # 練習模式
+│   ├── WordLibrary.tsx  # 字庫管理與製作新卡片
+│   ├── LearningMode.tsx # 兒童學習模式
 │   └── FlashcardComponent.tsx # 單字卡組件
 ├── services/            # 服務層
 │   ├── geminiService.ts # Gemini AI 服務
