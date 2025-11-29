@@ -38,7 +38,7 @@ export const groupCardsByLevel = (cards: Flashcard[]): Map<number, Flashcard[]> 
  * @returns Level 編號（從1開始）
  */
 // @ARCH: levelService - FEAT: 計算單字卡等級
-export const getLevelForCard = (index: number, totalCards: number): number => {
+export const getLevelForCard = (index: number, _totalCards: number): number => {
   // Level 從 1 開始，每 10 個單字一組
   return Math.floor(index / CARDS_PER_LEVEL) + 1;
 };

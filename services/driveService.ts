@@ -12,6 +12,7 @@ let tokenClient: any;
 let gapiInited = false;
 let gisInited = false;
 
+// @ARCH: driveService - FEAT: 初始化 Google Drive API
 // 1. Initialize GAPI and GIS
 export const initGoogleDrive = async (): Promise<boolean> => {
   // Helper log for developers to find the correct Origin
@@ -110,6 +111,7 @@ const maybeResolve = (resolve: (val: boolean) => void) => {
   if (gapiInited && gisInited) resolve(true);
 };
 
+// @ARCH: driveService - FEAT: Google Drive 認證
 // 2. Authentication
 export const authenticate = async (): Promise<void> => {
   return new Promise((resolve, reject) => {
@@ -187,7 +189,7 @@ export const authenticate = async (): Promise<void> => {
             // If we successfully restored a valid token, resolve immediately
             // No need to call requestAccessToken
             clearTimeout(timeoutId);
-            resolve({});
+            resolve(undefined);
             return;
           } else {
             // Token expired, remove it
@@ -204,7 +206,7 @@ export const authenticate = async (): Promise<void> => {
     if (token !== null && token.access_token) {
       clearTimeout(timeoutId);
       console.log("[OAuth] 使用現有 token（靜默認證）");
-      resolve({});
+      resolve(undefined);
       return;
     }
     
@@ -214,6 +216,7 @@ export const authenticate = async (): Promise<void> => {
   });
 };
 
+// @ARCH: driveService - FEAT: 手動設置 Token
 // Helper function to manually set token (for testing/automation)
 export const setTokenManually = async (tokenData: {
   access_token: string;
@@ -269,8 +272,10 @@ if (typeof window !== 'undefined') {
   };
 }
 
+// @ARCH: driveService - FEAT: Google Drive 檔案操作
 // 3. File Operations in AppData
 export const driveOps = {
+  // @ARCH: driveService - FEAT: 列出檔案
   async listFiles() {
     const response = await window.gapi.client.drive.files.list({
       spaces: 'appDataFolder',
@@ -280,6 +285,7 @@ export const driveOps = {
     return response.result.files;
   },
 
+  // @ARCH: driveService - FEAT: 建立檔案
   async createFile(name: string, content: string, mimeType = 'application/json') {
     const accessToken = window.gapi.client.getToken().access_token;
     
@@ -314,6 +320,7 @@ export const driveOps = {
     return fileId;
   },
 
+  // @ARCH: driveService - FEAT: 更新檔案
   async updateFile(fileId: string, content: string, mimeType = 'application/json') {
     const accessToken = window.gapi.client.getToken().access_token;
     
@@ -328,6 +335,7 @@ export const driveOps = {
     });
   },
 
+  // @ARCH: driveService - FEAT: 取得檔案內容
   async getFileContent(fileId: string): Promise<string> {
     try {
       const response = await window.gapi.client.drive.files.get({
@@ -351,6 +359,7 @@ export const driveOps = {
     }
   },
 
+  // @ARCH: driveService - FEAT: 刪除檔案
   async deleteFile(fileId: string): Promise<void> {
     try {
       await window.gapi.client.drive.files.delete({

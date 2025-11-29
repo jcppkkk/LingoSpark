@@ -20,7 +20,7 @@ const FlashcardComponent: React.FC<FlashcardComponentProps> = ({
   card, 
   isFlipped: externalIsFlipped,
   onFlip: externalOnFlip,
-  allowEdit = true,
+  allowEdit: _allowEdit = true,
   isPreview = false,
   voice = null,
   autoPlay = true,
@@ -114,7 +114,7 @@ const FlashcardComponent: React.FC<FlashcardComponentProps> = ({
       
       return () => clearTimeout(timer);
     }
-  }, [isFlipped, word, sentence, voice, autoPlay, isGenerating]);
+  }, [isFlipped, word, sentence, voice, autoPlay, isGenerating, externalIsFlipped]);
 
   // Render syllables with visual stress indicator
   const renderPhonics = () => {
@@ -144,8 +144,8 @@ const FlashcardComponent: React.FC<FlashcardComponentProps> = ({
     };
 
     return (
-{/* @ARCH: FlashcardComponent.UI.卡片狀態標籤顯示 */}
       <div className={`phonics-section flex flex-col items-center ${isPreview ? 'gap-1 mb-1.5' : 'gap-2 mb-4'} bg-white/50 ${isPreview ? 'p-1.5' : 'p-2'} rounded-xl border border-white/60`}>
+        {/* @ARCH: FlashcardComponent.UI.卡片狀態標籤顯示 */}
         <div className="phonics-syllables flex items-center gap-1 font-mono">
           {syllables.map((syl, idx) => renderSyllable(syl, idx))}
         </div>
@@ -324,7 +324,7 @@ const FlashcardComponent: React.FC<FlashcardComponentProps> = ({
                    <Icons.Book size={14} /> 例句
                 </h4>
                <div className={`sentence-content bg-slate-50 ${isPreview ? 'p-2.5' : 'p-4'} ${isPreview ? 'rounded-xl' : 'rounded-2xl'} border-2 border-slate-100`}>
-                  <p className={`sentence-english ${isPreview ? 'text-xs mb-1' : 'text-sm mb-2'} text-slate-800 font-medium leading-relaxed`}>"{sentence}"</p>
+                  <p className={`sentence-english ${isPreview ? 'text-xs mb-1' : 'text-sm mb-2'} text-slate-800 font-medium leading-relaxed`}>&quot;{sentence}&quot;</p>
                   <p className={`sentence-translation text-xs text-slate-500 font-medium`}>{sentenceTranslation}</p>
                </div>
             </div>

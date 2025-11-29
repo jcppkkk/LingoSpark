@@ -1,5 +1,30 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
+# ESLint 自動修正（先修正可自動修復的問題）
+echo "🔍 自動修正 ESLint 問題..."
+npm run lint:fix
+
+# ESLint 檢查（檢查是否還有無法自動修正的錯誤）
+echo "🔍 檢查 ESLint 錯誤..."
+npm run lint
+
+# 如果 ESLint 檢查失敗，阻止提交
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ 提交被阻止：發現 ESLint 錯誤"
+  echo "💡 提示：執行 npm run lint:fix 自動修正部分問題"
+  exit 1
+fi
+
+# TypeScript 語法檢查（在 ESLint 修正後檢查類型錯誤）
+echo "🔍 檢查 TypeScript 語法錯誤..."
+npm run type-check
+
+# 如果語法檢查失敗，阻止提交
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ 提交被阻止：發現 TypeScript 語法錯誤"
+  echo "💡 提示：請修復所有語法錯誤後再提交"
+  exit 1
+fi
 
 # 工作流程檢查
 echo "🔍 檢查工作流程規則..."

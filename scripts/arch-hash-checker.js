@@ -12,7 +12,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { scanAnnotations, calculateHash } from './arch-annotation-scanner.js';
+import { scanAnnotations } from './arch-annotation-scanner.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,7 +40,7 @@ function extractHashesFromArchitecture() {
     const moduleMatch = section.match(/^([^\n]+)/);
     if (!moduleMatch) continue;
     
-    const moduleName = moduleMatch[1].replace(/[📊➕📚🎴🧪]/g, '').trim();
+    const moduleName = moduleMatch[1].replace(/[📊➕📚🎴🧪]/gu, '').trim();
     
     // 提取 hash 和位置
     let match;
@@ -95,7 +95,7 @@ function checkHashes() {
   const issues = [];
   const missing = [];
   
-  for (const { file, annotations, fileHash } of scanResults) {
+  for (const { annotations } of scanResults) {
     for (const ann of annotations) {
       const key = `${ann.file}:${ann.startLine}-${ann.endLine}`;
       const documented = documentedHashes[key];

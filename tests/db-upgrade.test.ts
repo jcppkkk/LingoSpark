@@ -2,13 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { initDB, dbOps } from '../services/db';
 
 describe('資料庫版本升級測試', () => {
-  const TEST_DB_NAME = 'LingoSparkDB_Test';
-  let originalDBName: string;
-  let originalDBVersion: number;
-
   beforeEach(async () => {
     // 備份原始設定
-    const dbModule = await import('../services/db');
     // 注意：這裡我們需要測試實際的資料庫行為
     // 由於 db.ts 使用常數，我們需要測試實際的升級場景
   });

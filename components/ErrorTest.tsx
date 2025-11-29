@@ -38,8 +38,8 @@ const ErrorTest: React.FC<ErrorTestProps> = ({ onBack }) => {
 
 // @ARCH: ErrorTest.UI.頁面主要佈局
   return (
-{/* @ARCH: ErrorTest.UI.頁首區塊 */}
     <div className="h-full flex flex-col p-6 max-w-4xl mx-auto animate-in slide-in-from-bottom-4 duration-500">
+      {/* @ARCH: ErrorTest.UI.頁首區塊 */}
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
@@ -58,9 +58,9 @@ const ErrorTest: React.FC<ErrorTestProps> = ({ onBack }) => {
           <Icons.ArrowLeft size={18} />
           <span>返回</span>
         </button>
-{/* @ARCH: ErrorTest.UI.測試說明警告橫幅 */}
       </div>
 
+      {/* @ARCH: ErrorTest.UI.測試說明警告橫幅 */}
       {/* Warning Banner */}
       <div className="mb-6 bg-amber-50 border-2 border-amber-200 rounded-2xl p-4">
         <div className="flex items-start gap-3">
@@ -72,10 +72,10 @@ const ErrorTest: React.FC<ErrorTestProps> = ({ onBack }) => {
               請前往 Sentry 儀表板確認事件是否正常接收。
             </p>
           </div>
-{/* @ARCH: ErrorTest.UI.錯誤觸發按鈕網格 */}
         </div>
       </div>
 
+      {/* @ARCH: ErrorTest.UI.錯誤觸發按鈕網格 */}
       {/* Test Buttons Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
         {/* Throw Error Button */}
@@ -135,11 +135,11 @@ const ErrorTest: React.FC<ErrorTestProps> = ({ onBack }) => {
         >
           <Icons.Flash size={32} />
           <span className="font-black text-xl">Promise Rejection</span>
-{/* @ARCH: ErrorTest.UI.資訊提示頁腳 */}
           <span className="text-sm text-pink-100">未處理的 Promise 拒絕</span>
         </button>
       </div>
 
+      {/* @ARCH: ErrorTest.UI.資訊提示頁腳 */}
       {/* Info Footer */}
       <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
         <p className="text-sm text-slate-600 text-center">

@@ -165,14 +165,9 @@ function checkUIElements(filePath, architectureContent) {
   // 檢測主要 UI 元素
   const buttonCount = (content.match(/<button/g) || []).length;
   const inputCount = (content.match(/<input/g) || []).length;
-  const formCount = (content.match(/<form/g) || []).length;
-  const selectCount = (content.match(/<select/g) || []).length;
   
   // 檢查是否有導航相關的 onClick
-  const hasNavigation = /onNavigate|onClick.*views\.|navigate\(/i.test(content);
-  
   // 檢查是否有表單提交
-  const hasFormSubmit = /onSubmit|handleSubmit/i.test(content);
   
   // 檢查是否有檔案上傳
   const hasFileUpload = /type=["']file["']|input.*file/i.test(content);

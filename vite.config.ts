@@ -34,6 +34,9 @@ export default defineConfig(({ mode }) => {
         }),
       ].filter(Boolean),
       define: {
+        'import.meta.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+        'import.meta.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+        // 保留 process.env 以支援 Node.js 環境（測試等）
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
         'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
       },

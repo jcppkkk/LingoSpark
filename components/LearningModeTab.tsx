@@ -24,6 +24,7 @@ const LearningModeTab: React.FC<LearningModeTabProps> = ({
 
   // 當卡片改變時，重置為正面
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsFlipped(false);
   }, [card.id]);
 

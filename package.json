@@ -22,6 +22,9 @@
     "arch:reorganize": "node scripts/arch-code-reorganizer-advanced.js",
     "doc:update": "node scripts/doc-update-helper.js",
     "workflow:check": "node scripts/workflow-checker.js",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint . --ext .ts,.tsx",
+    "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "prepare": "husky"
   },
   "dependencies": {
@@ -33,15 +36,22 @@
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.1",
     "@tailwindcss/postcss": "^4.1.17",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
     "@types/node": "^22.14.0",
+    "@typescript-eslint/eslint-plugin": "^8.48.0",
+    "@typescript-eslint/parser": "^8.48.0",
     "@vitejs/plugin-react": "^5.0.0",
     "@vitest/ui": "^4.0.14",
     "autoprefixer": "^10.4.22",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
     "fake-indexeddb": "^6.2.5",
+    "globals": "^16.5.0",
     "happy-dom": "^20.0.11",
     "husky": "^9.1.7",
     "jsdom": "^27.2.0",

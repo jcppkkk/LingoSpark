@@ -75,12 +75,15 @@ const LearningMode: React.FC<LearningModeProps> = ({ onFinish }) => {
   useEffect(() => {
     if (selectedLevel === 0) {
       // 全部單字
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCurrentCards(allCards);
     } else {
       // 特定 Level
       const levelCards = getCardsByLevel(allCards, selectedLevel);
+       
       setCurrentCards(levelCards);
     }
+     
     setCurrentCardIndex(0); // 重置到第一張卡片
   }, [selectedLevel, allCards]);
   // @ARCH:END LearningMode - UX: Level 選擇與卡片過濾

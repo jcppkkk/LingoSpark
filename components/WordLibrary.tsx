@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Icons } from '../constants';
 import { analyzeWord, extractWordsFromImage, generateMnemonicImage } from '../services/geminiService';
 import { createNewCard, saveCard, checkWordExists, getCards, deleteCard } from '../services/storageService';
@@ -59,7 +59,7 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
 
   // @ARCH:START WordLibrary - FEAT: 載入單字庫
   // Load library cards
-  const loadLibraryCards = async () => {
+  const loadLibraryCards = useCallback(async () => {
     setIsLoadingLibrary(true);
     try {
       const cards = await getCards();
@@ -69,14 +69,81 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
     } finally {
       setIsLoadingLibrary(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadLibraryCards();
     // 載入預設語音
     findDefaultEnglishVoice().then(v => setVoice(v)).catch(console.error);
-  }, []);
+  }, [loadLibraryCards]);
   // @ARCH:END WordLibrary - FEAT: 載入單字庫
+
+  // @ARCH:START WordLibrary - FEAT: AI 分析單字
+  const processItem = useCallback(async (item: QueueItem) => {
+    const updateStatus = (updates: Partial<QueueItem>) => {
+      setQueue(prev => prev.map(i => i.id === item.id ? { ...i, ...updates } : i));
+    };
+
+    try {
+        updateStatus({ status: 'ANALYZING' });
+        
+        const exists = await checkWordExists(item.word);
+        if (exists) {
+           updateStatus({ status: 'ERROR', errorMsg: '單字庫中已存在', isDuplicate: true });
+           return;
+        }
+
+        const analysis = await analyzeWord(item.word);
+        
+        // 生成圖片
+        let imageUrl: string | undefined;
+        try {
+          if (analysis.imagePrompt) {
+            imageUrl = await generateMnemonicImage(analysis.word, analysis.imagePrompt);
+          }
+        } catch (imgErr) {
+          console.warn("圖片生成失敗，繼續使用文字卡片", imgErr);
+        }
+        
+        let newCard = createNewCard(analysis, imageUrl, CardStatus.GENERATING);
+
+        await saveCard(newCard);
+        const finalCard = { ...newCard, status: CardStatus.NORMAL };
+        updateStatus({ status: 'SUCCESS', card: finalCard });
+
+        setPreviewItem(current => {
+            if (!current) return { ...item, status: 'SUCCESS', card: finalCard };
+            if (current.id === item.id) return { ...item, status: 'SUCCESS', card: finalCard };
+            return current;
+        });
+
+        // Refresh library when new card is created
+        await loadLibraryCards();
+        // 新增完成後切換到字庫管理標籤頁，不跳回主畫面
+        setActiveTab('library');
+
+    } catch (err: any) {
+        console.error("Processing failed for", item.word, err);
+        
+        let msg = '分析失敗';
+        const eStr = (err.message || err.toString()).toLowerCase();
+        
+        if (eStr.includes('safety') || eStr.includes('blocked')) {
+            msg = '內容涉及敏感話題，無法生成';
+        } else if (eStr.includes('503') || eStr.includes('overloaded') || eStr.includes('busy')) {
+            msg = 'AI 伺服器繁忙，請稍後重試';
+        } else if (eStr.includes('network') || eStr.includes('fetch') || eStr.includes('connection')) {
+            msg = '網路連線不穩定';
+        } else if (eStr.includes('400') || eStr.includes('invalid')) {
+            msg = '無法辨識該單字，請檢查拼字';
+        } else if (eStr.includes('json')) {
+            msg = 'AI 回傳格式錯誤，請重試';
+        }
+
+        updateStatus({ status: 'ERROR', errorMsg: msg });
+    }
+  }, [loadLibraryCards, setQueue, setPreviewItem, setActiveTab]);
+  // @ARCH:END WordLibrary - FEAT: AI 分析單字
 
   // @ARCH:START WordLibrary - FEAT: 處理佇列邏輯
   // Queue Processing Logic
@@ -94,7 +161,7 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
     };
 
     processQueue();
-  }, [queue]);
+  }, [queue, processItem]);
   // @ARCH:END WordLibrary - FEAT: 處理佇列邏輯
 
   // Restore saved detected words and queue
@@ -169,73 +236,6 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
       button.removeEventListener('click', handleClick);
     };
   }, []);
-
-  // @ARCH:START WordLibrary - FEAT: AI 分析單字
-  const processItem = async (item: QueueItem) => {
-    const updateStatus = (updates: Partial<QueueItem>) => {
-      setQueue(prev => prev.map(i => i.id === item.id ? { ...i, ...updates } : i));
-    };
-
-    try {
-        updateStatus({ status: 'ANALYZING' });
-        
-        const exists = await checkWordExists(item.word);
-        if (exists) {
-           updateStatus({ status: 'ERROR', errorMsg: '單字庫中已存在', isDuplicate: true });
-           return;
-        }
-
-        const analysis = await analyzeWord(item.word);
-        
-        // 生成圖片
-        let imageUrl: string | undefined;
-        try {
-          if (analysis.imagePrompt) {
-            imageUrl = await generateMnemonicImage(analysis.word, analysis.imagePrompt);
-          }
-        } catch (imgErr) {
-          console.warn("圖片生成失敗，繼續使用文字卡片", imgErr);
-        }
-        
-        let newCard = createNewCard(analysis, imageUrl, CardStatus.GENERATING);
-
-        await saveCard(newCard);
-        const finalCard = { ...newCard, status: CardStatus.NORMAL };
-        updateStatus({ status: 'SUCCESS', card: finalCard });
-
-        setPreviewItem(current => {
-            if (!current) return { ...item, status: 'SUCCESS', card: finalCard };
-            if (current.id === item.id) return { ...item, status: 'SUCCESS', card: finalCard };
-            return current;
-        });
-
-        // Refresh library when new card is created
-        await loadLibraryCards();
-        // 新增完成後切換到字庫管理標籤頁，不跳回主畫面
-        setActiveTab('library');
-
-    } catch (err: any) {
-        console.error("Processing failed for", item.word, err);
-        
-        let msg = '分析失敗';
-        const eStr = (err.message || err.toString()).toLowerCase();
-        
-        if (eStr.includes('safety') || eStr.includes('blocked')) {
-            msg = '內容涉及敏感話題，無法生成';
-        } else if (eStr.includes('503') || eStr.includes('overloaded') || eStr.includes('busy')) {
-            msg = 'AI 伺服器繁忙，請稍後重試';
-        } else if (eStr.includes('network') || eStr.includes('fetch') || eStr.includes('connection')) {
-            msg = '網路連線不穩定';
-        } else if (eStr.includes('400') || eStr.includes('invalid')) {
-            msg = '無法辨識該單字，請檢查拼字';
-        } else if (eStr.includes('json')) {
-            msg = 'AI 回傳格式錯誤，請重試';
-        }
-
-        updateStatus({ status: 'ERROR', errorMsg: msg });
-    }
-  };
-  // @ARCH:END WordLibrary - FEAT: AI 分析單字
 
   // @ARCH:START WordLibrary - UX: 新增單字到佇列流程
   const addToQueue = (wordStr: string) => {
@@ -546,7 +546,7 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
         // 最新的在前
         return b.createdAt - a.createdAt;
       
-      case 'proficiency':
+      case 'proficiency': {
         // 熟練度計算：repetition * efactor，高的在前
         // 如果 repetition 相同，則比較 efactor
         const proficiencyA = a.repetition * a.efactor;
@@ -560,6 +560,7 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
         }
         // 如果 repetition 也相同，則按 efactor 排序
         return b.efactor - a.efactor;
+      }
       
       default:
         return 0;

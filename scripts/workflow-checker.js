@@ -24,8 +24,6 @@ const __dirname = path.dirname(__filename);
 
 const ARCHITECTURE_FILE = path.join(__dirname, '..', 'ARCHITECTURE.md');
 const FEATURES_FILE = path.join(__dirname, '..', 'docs', 'features', 'README.md');
-const COMPONENTS_DIR = path.join(__dirname, '..', 'components');
-const SERVICES_DIR = path.join(__dirname, '..', 'services');
 
 // 獲取 Git 變更的檔案
 function getChangedFiles() {
@@ -43,7 +41,7 @@ function getChangedFiles() {
       .filter(f => f && (f.endsWith('.tsx') || f.endsWith('.ts')));
     
     return { staged: stagedFiles, modified: modifiedFiles };
-  } catch (error) {
+  } catch (_error) {
     return { staged: [], modified: [] };
   }
 }
@@ -193,7 +191,7 @@ function checkWorkflowRules() {
 
   if (warnings.length > 0) {
     console.log('⚠️  建議改進：\n');
-    warnings.forEach(({ file, rule, suggestion }) => {
+    warnings.forEach(({ file, suggestion }) => {
       console.log(`   📄 ${file}`);
       console.log(`   💡 ${suggestion}\n`);
     });

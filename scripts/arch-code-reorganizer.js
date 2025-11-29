@@ -12,7 +12,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { scanAnnotations, calculateHash } from './arch-annotation-scanner.js';
+import { scanAnnotations } from './arch-annotation-scanner.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,9 +25,6 @@ function reorganizeByArchAnnotations(filePath, dryRun = false) {
     return;
   }
 
-  const content = fs.readFileSync(fullPath, 'utf-8');
-  const lines = content.split('\n');
-  
   // 掃描所有註解
   const scanResults = scanAnnotations(filePath);
   if (scanResults.length === 0 || scanResults[0].annotations.length === 0) {

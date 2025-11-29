@@ -73,7 +73,7 @@ function parseAnnotationContent(content) {
   }
   
   // 如果格式不符合，嘗試簡單解析
-  const parts = content.split(/[-\:]/);
+  const parts = content.split(/[-:]/);
   if (parts.length >= 3) {
     return {
       module: parts[0].trim(),

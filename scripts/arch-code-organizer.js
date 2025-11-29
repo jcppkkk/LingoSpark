@@ -70,7 +70,6 @@ function organizeWithSectionHeaders(filePath, dryRun = false) {
     // 檢查是否需要添加區段標題
     for (const group of sortedGroups) {
       // 如果這是該組的第一個項目的開始，且還沒添加標題
-      const isFirstItem = group.items.some(item => item.startLine === lineNum);
       const isFirstInGroup = group.items[0].startLine === lineNum;
       
       if (isFirstInGroup && !sectionHeadersAdded.has(group.firstLine)) {

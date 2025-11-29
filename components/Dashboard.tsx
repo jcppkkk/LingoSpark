@@ -30,6 +30,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, views }) => {
     // Detect dynamic cloud environments
     const hostname = window.location.hostname;
     if (hostname.includes('googleusercontent') || hostname.includes('webcontainer') || hostname.includes('replit') || hostname.includes('github.dev')) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsDynamicOrigin(true);
     }
 
@@ -52,8 +53,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, views }) => {
 
   return (
     <div className="h-full flex flex-col p-6 max-w-5xl mx-auto animate-in slide-in-from-bottom-4 duration-500 bg-gradient-to-b from-transparent to-white/50">
-      
-// @ARCH: Dashboard.UI.應用程式標頭
+      {/* @ARCH: Dashboard.UI.應用程式標頭 */}
       {/* Header */}
       <div className="flex items-center justify-between mb-10 mt-4">
         <div className="flex items-center gap-4">
@@ -84,8 +84,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, views }) => {
         )}
         {/* @ARCH:END Dashboard - UI: 雲端同步按鈕 */}
       </div>
-// @ARCH: Dashboard.UX.雲端同步錯誤提示與處理
-
+      {/* @ARCH: Dashboard.UX.雲端同步錯誤提示與處理 */}
       {/* Sync Error Alert (Dismissible) */}
       {syncStatus.error && !ignoreSyncError && (
         <div className="mb-6 bg-red-50 border-2 border-red-100 rounded-2xl p-4 animate-in fade-in slide-in-from-top-2">
@@ -200,8 +199,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, views }) => {
         </button>
         {/* @ARCH:END Dashboard - UI: 管理單字卡按鈕 */}
       </div>
-// @ARCH: Dashboard.UI.Sentry 錯誤測試按鈕
-
+      {/* @ARCH: Dashboard.UI.Sentry 錯誤測試按鈕 */}
       {/* Developer Tools */}
       <div className="mt-auto pt-10 pb-4">
         <div className="flex justify-center">

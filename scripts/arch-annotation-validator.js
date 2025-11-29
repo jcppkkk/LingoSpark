@@ -49,7 +49,7 @@ function getChangedFiles() {
       .filter(f => f);
     
     return { staged: stagedFiles, modified: modifiedFiles };
-  } catch (error) {
+  } catch (_error) {
     // 如果不在 Git 倉庫中，返回空陣列
     return { staged: [], modified: [] };
   }
@@ -125,7 +125,7 @@ function detectChangeType(filePath) {
       feat: hasFeatureChange,
       ux: hasUXChange
     };
-  } catch (error) {
+  } catch (_error) {
     // 如果是新檔案，假設所有類型都可能變更
     return { ui: true, feat: true, ux: true };
   }
@@ -293,9 +293,9 @@ async function validateAnnotations() {
           }
         }
       }
-    } catch (error) {
+    } catch (_error) {
       // 忽略 import 錯誤，但不影響其他檢查
-      console.warn('⚠️  無法檢查註解格式:', error.message);
+      console.warn('⚠️  無法檢查註解格式:', _error.message);
     }
   } else if (warnings.length === 0 && issues.length === 0) {
     // 在 warning 模式下，只給提示
@@ -307,7 +307,7 @@ async function validateAnnotations() {
       if (scanResults.length > 0) {
         console.log('💡 提示：建議執行 `npm run arch:check` 檢查 hash 同步狀態\n');
       }
-    } catch (error) {
+    } catch (_error) {
       // 忽略 import 錯誤
     }
   }
@@ -335,8 +335,8 @@ async function main() {
   process.exit(exitCode);
 }
 
-main().catch(error => {
-  console.error('❌ 驗證過程發生錯誤:', error);
+main().catch(_error => {
+  console.error('❌ 驗證過程發生錯誤:', _error);
   process.exit(1);
 });
 

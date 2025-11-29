@@ -107,8 +107,8 @@ const DictationModeTab: React.FC<DictationModeTabProps> = ({
   };
 
   return (
-{/* @ARCH: DictationModeTab.UI.單字定義與語音播放區 */}
     <div className="flex flex-col h-full items-center justify-center p-4 md:p-8">
+      {/* @ARCH: DictationModeTab.UI.單字定義與語音播放區 */}
       {/* 進度指示 */}
       <div className="mb-4 text-sm font-bold text-slate-500">
         {currentIndex + 1} / {totalCards}

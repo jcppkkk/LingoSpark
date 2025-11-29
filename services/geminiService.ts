@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { WordAnalysis } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey: (import.meta.env.API_KEY || import.meta.env.GEMINI_API_KEY) as string });
 
 // Schema for structured word analysis
 const wordAnalysisSchema: Schema = {

@@ -99,10 +99,10 @@ const migrationToV2 = (card: Flashcard): Flashcard => {
  */
 const migrationToV3 = (card: Flashcard): Flashcard => {
   // Remove imageUrl and imagePrompt from Flashcard
-  const { imageUrl, imagePrompt, ...cardWithoutImages } = card;
+  const { imageUrl: _imageUrl, imagePrompt: _imagePrompt, ...cardWithoutImages } = card;
   
-  // Remove mnemonicHint and imagePrompt from WordAnalysis
-  const { mnemonicHint, imagePrompt: dataImagePrompt, ...dataWithoutMnemonic } = card.data;
+  // Remove mnemonicHint and imagePrompt from WordAnalysis (if they exist)
+  const { mnemonicHint: _mnemonicHint, imagePrompt: _dataImagePrompt, ...dataWithoutMnemonic } = card.data as any;
   
   return {
     ...cardWithoutImages,
@@ -125,7 +125,7 @@ const migrationToV3 = (card: Flashcard): Flashcard => {
  */
 const migrationToV4 = (card: Flashcard): Flashcard => {
   // Remove mnemonicHint from WordAnalysis if it exists
-  const { mnemonicHint, ...dataWithoutMnemonic } = card.data;
+  const { mnemonicHint: _mnemonicHint, ...dataWithoutMnemonic } = card.data as any;
   
   // Preserve imagePrompt in data if it exists
   // If it was removed in V3, it will be added when the card is re-analyzed

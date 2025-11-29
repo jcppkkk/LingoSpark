@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Flashcard } from '../types';
 import { speakWord } from '../services/speechService';
 import { playCorrectSound } from '../services/soundService';
@@ -116,7 +116,7 @@ const BlockModeTab: React.FC<BlockModeTabProps> = ({
 
   return (
     <div className="flex flex-col h-full items-center justify-center p-4 md:p-8">
-// @ARCH: BlockModeTab.UI.中文提示與語音按鈕
+      {/* @ARCH: BlockModeTab.UI.中文提示與語音按鈕 */}
       {/* 進度指示 */}
       <div className="mb-4 text-sm font-bold text-slate-500">
         {currentIndex + 1} / {totalCards}
@@ -152,8 +152,8 @@ const BlockModeTab: React.FC<BlockModeTabProps> = ({
             </div>
           ))}
           {selectedLetters.length < word.length && (
-{/* @ARCH: BlockModeTab.UI.打散字母選擇區 */}
             <div className="w-16 h-16 border-4 border-dashed border-slate-300 rounded-xl flex items-center justify-center text-slate-400 text-2xl">
+              {/* @ARCH: BlockModeTab.UI.打散字母選擇區 */}
               ?
             </div>
           )}

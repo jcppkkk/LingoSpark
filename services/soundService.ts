@@ -14,7 +14,6 @@ export const playCorrectSound = (): void => {
     
     // 創建一個上升的音調序列
     const frequencies = [523.25, 659.25, 783.99]; // C5, E5, G5 (C major chord)
-    let currentIndex = 0;
     
     const playTone = (frequency: number, startTime: number, duration: number) => {
       const oscillator = audioContext.createOscillator();

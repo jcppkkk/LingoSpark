@@ -123,7 +123,6 @@ function analyzeCodeStructure(content, filePath) {
   // 簡單的啟發式識別
   let currentBlock = null;
   let inJSX = false;
-  let braceCount = 0;
   
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
