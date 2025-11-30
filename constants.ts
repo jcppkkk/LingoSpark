@@ -56,7 +56,3 @@ export const GOOGLE_DRIVE_CLIENT_ID = "885392911088-ibmq2i05lfk0ih49nv4p8lgc4g36
 // This should be a public API Key (starts with AIza...) if you have one, otherwise leave empty.
 export const GOOGLE_DRIVE_API_KEY = ""; 
 export const GOOGLE_DRIVE_SCOPES = "https://www.googleapis.com/auth/drive.appdata";
-
-// Feature Flags
-// Set to true to enable error testing component (for development/testing only)
-export const ENABLE_ERROR_TEST = import.meta.env.DEV || import.meta.env.VITE_ENABLE_ERROR_TEST === 'true';

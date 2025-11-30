@@ -1,0 +1,127 @@
+---
+alwaysApply: false
+description: 開發階段規則 - 規劃與程式碼開發規範
+applicableFiles:
+  - "components/**/*.tsx"
+  - "services/**/*.ts"
+  - "*.tsx"
+  - "*.ts"
+---
+
+# 開發階段規則
+
+本文檔定義功能規劃與程式碼開發階段的規則。
+
+> **相關規則**：
+>
+> - TDD 工作流程：`workflow-tdd.mdc`
+> - 測試相關：`workflow-testing.mdc`
+> - 文檔更新：`workflow-documentation.mdc`
+> - 驗證提交：`workflow-verification.mdc`
+
+## 階段 1: 規劃與設計
+
+### 規則 1.0: TDD 工作流程（必須遵循）
+
+**在開始開發前，必須遵循完整的 TDD 循環**：
+
+1. **Feature 定義**（規則 1.1）
+   - 明確功能範圍和目標
+   - 識別功能的一般性期望（業界標準、使用者需求）
+
+2. **UX 設計**（規則 1.2）
+   - 基於 feature 定義設計 UX 路徑
+   - 確保 UX 符合 feature 的一般性期望
+   - 定義觸發條件、操作步驟、預期結果
+
+3. **測試設計**（規則 1.3）
+   - 基於 UX 定義編寫測試
+   - 測試必須完全符合 UX 定義的預期結果
+   - 測試描述必須包含觸發條件、操作步驟、預期結果
+
+4. **實作**（規則 2.3）
+   - 基於測試編寫實作
+   - 確保實作通過所有測試
+   - 確保實作符合 UX 定義
+
+**詳細說明請參考**：`.cursor/rules/workflow-tdd.mdc`
+
+### 規則 1.1: 確定功能範圍
+
+**必須明確**：
+
+- 功能描述
+- UI/UX 需求
+- 技術實現方案
+- 功能的一般性期望（業界標準、使用者需求）
+
+### 規則 1.2: 識別影響範圍
+
+**必須識別**：
+
+- 需要新增哪些組件？
+- 需要新增哪些服務？
+- 需要修改哪些資料模型？
+- 是否需要新增路由？
+
+## 階段 2: 開發程式碼
+
+### 規則 2.1: 創建組件/服務
+
+**創建新組件時**：
+
+```bash
+touch components/NewFeature.tsx
+```
+
+**創建新服務時**：
+
+```bash
+touch services/newService.ts
+```
+
+### 規則 2.2: 立即添加 @ARCH 註解標記
+
+**必須從開發開始就標記**，不要等到最後才添加：
+
+```typescript
+// @ARCH:START NewFeature - UI: 主要功能區塊
+export default function NewFeature() {
+  // @ARCH: NewFeature - UI: 列表顯示
+  // ...
+
+  // @ARCH: NewFeature - FEAT: 載入資料
+  useEffect(() => {
+    // ...
+  }, []);
+
+  // @ARCH: NewFeature - UX: 新增項目流程
+  const handleAdd = () => {
+    // ...
+  };
+}
+// @ARCH:END NewFeature - UI: 主要功能區塊
+```
+
+**註解標記規則**：
+
+- 新增組件：`@ARCH:START/END` 標記整個組件
+- UI 變更：`@ARCH: Component - UI: 功能名稱`
+- 功能變更：`@ARCH: Component - FEAT: 功能名稱`
+- UX 變更：`@ARCH: Component - UX: 流程名稱`
+
+### 規則 2.3: 實現功能邏輯
+
+**必須同時進行**：
+
+- 編寫組件邏輯（同時添加對應的 @ARCH tags）
+- 實現服務函數
+- 更新資料模型（如需要）
+
+## 何時載入此規則
+
+此規則在以下情況自動載入：
+
+- 編輯 `components/` 或 `services/` 目錄下的檔案
+- 創建新的組件或服務檔案
+- 進行功能開發相關的對話

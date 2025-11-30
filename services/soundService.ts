@@ -3,6 +3,18 @@
  * 使用 Web Audio API 生成音效
  */
 
+// WebKit 瀏覽器（如 Safari）使用的舊版 AudioContext API
+// 注意：WebkitAudioContext 與標準 AudioContext 功能相同，使用類型別名
+type WebkitAudioContext = AudioContext;
+
+declare global {
+  interface Window {
+    webkitAudioContext?: {
+      new (): WebkitAudioContext;
+    };
+  }
+}
+
 /**
  * 播放答對音效
  * 生成一個上升的音調，表示成功
@@ -10,7 +22,12 @@
 // @ARCH: soundService - FEAT: 播放答對音效
 export const playCorrectSound = (): void => {
   try {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) {
+      console.warn('Web Audio API 不支援');
+      return;
+    }
+    const audioContext = new AudioContextClass();
     
     // 創建一個上升的音調序列
     const frequencies = [523.25, 659.25, 783.99]; // C5, E5, G5 (C major chord)
@@ -58,7 +75,12 @@ export const playCorrectSound = (): void => {
 // @ARCH: soundService - FEAT: 播放錯誤音效
 export const playWrongSound = (): void => {
   try {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) {
+      console.warn('Web Audio API 不支援');
+      return;
+    }
+    const audioContext = new AudioContextClass();
     
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
@@ -94,6 +116,6 @@ export const playWrongSound = (): void => {
  */
 // @ARCH: soundService - FEAT: 檢查 Web Audio API 支援
 export const isWebAudioSupported = (): boolean => {
-  return !!(window.AudioContext || (window as any).webkitAudioContext);
+  return !!(window.AudioContext || window.webkitAudioContext);
 };
 

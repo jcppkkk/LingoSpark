@@ -31,6 +31,21 @@ npm run test:coverage
 tests/
 ├── setup.ts              # 測試環境設定
 ├── db-upgrade.test.ts    # 資料庫升級測試
+├── ux/                   # UX 路徑測試
+│   ├── UX0001.test.tsx  # Dashboard - 查看學習統計
+│   ├── UX0002.test.tsx  # Dashboard - 開始複習挑戰
+│   └── ...              # 其他 UX 路徑測試
+├── utils/                # 測試工具函數
+│   ├── test-helpers.tsx        # 基礎測試輔助函數
+│   ├── navigation-helpers.tsx # 導航測試輔助
+│   ├── form-helpers.tsx       # 表單測試輔助
+│   ├── button-helpers.tsx     # 按鈕測試輔助
+│   ├── list-helpers.tsx       # 列表操作測試輔助
+│   ├── card-helpers.tsx       # 卡片翻轉測試輔助
+│   └── answer-helpers.tsx     # 答案檢查測試輔助
+├── fixtures/             # 測試固定資料
+│   ├── flashcards.ts     # Flashcard mock 資料
+│   └── word-analysis.ts # WordAnalysis mock 資料
 └── README.md             # 本文件
 ```
 
@@ -66,11 +81,78 @@ tests/
 - ✅ 資料持久化
 - ✅ 資料完整性
 
+## UX 路徑測試
+
+### 測試對應規則
+
+每個 UX 路徑（格式：UX####）都必須有對應的測試檔案：
+
+- 測試檔案命名：`tests/ux/UX####.test.tsx`
+- 測試必須包含：觸發條件、操作步驟、預期結果的驗證
+- 使用共用測試元件（符合 DRY & KISS 原則）
+
+### 檢查工具
+
+```bash
+# 檢查 UX-測試 對應
+npm run ux:test:check
+
+# 檢查並自動生成缺失的測試模板
+npm run ux:test:check:fix
+
+# 列出所有 UX 路徑及其測試狀態
+npm run ux:test:list
+```
+
+### 共用測試元件
+
+測試應使用 `tests/utils/` 目錄下的共用元件：
+
+- **test-helpers.tsx** - 基礎測試輔助函數（renderWithProviders, mockStorageService 等）
+- **navigation-helpers.tsx** - 導航測試（UX0002, UX0003, UX0005）
+- **form-helpers.tsx** - 表單輸入測試（UX0011, UX0027）
+- **button-helpers.tsx** - 按鈕點擊測試（UX0004, UX0020, UX0023, UX0026）
+- **list-helpers.tsx** - 列表操作測試（UX0006, UX0007, UX0008）
+- **card-helpers.tsx** - 卡片翻轉測試（UX0030, UX0021）
+- **answer-helpers.tsx** - 答案檢查測試（UX0025, UX0028）
+
+### 測試實作指南
+
+1. **使用測試模板生成器**：
+   ```bash
+   node scripts/ux-test-generator.js UX0001
+   node scripts/ux-test-generator.js --all
+   ```
+
+2. **測試結構範例**：
+   ```typescript
+   import { describe, it, expect } from 'vitest';
+   import { renderWithProviders } from '../utils/test-helpers';
+   import { testNavigation } from '../utils/navigation-helpers';
+   
+   describe('UX0001: 查看學習統計', () => {
+     it('應該在頁面載入時顯示學習統計', async () => {
+       // 觸發條件：...
+       // 操作步驟：...
+       // 預期結果：...
+     });
+   });
+   ```
+
+3. **驗證測試**：
+   ```bash
+   npm run test:run
+   ```
+
+詳細的 UX-測試 對應表請參考：`docs/testing/ux-test-mapping.md`
+
 ## 持續改進
 
-當需要測試新的資料庫功能時：
+當需要測試新的功能時：
 
-1. 在 `tests/` 目錄下創建新的測試文件
+1. 在 `tests/ux/` 目錄下創建對應的測試文件（UX####.test.tsx）
 2. 使用 `describe` 和 `it` 組織測試案例
 3. 使用 `beforeEach` 和 `afterEach` 清理測試環境
-4. 運行 `npm run test:run` 驗證測試通過
+4. 使用共用測試元件（符合 DRY & KISS 原則）
+5. 運行 `npm run test:run` 驗證測試通過
+6. 運行 `npm run ux:test:check` 確認測試對應正確

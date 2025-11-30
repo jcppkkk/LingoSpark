@@ -1,0 +1,160 @@
+---
+alwaysApply: false
+description: 驗證與提交規則 - 檢查工具使用與 Git 提交規範
+applicableFiles:
+  - ".husky/**"
+  - "package.json"
+---
+
+# 驗證與提交規則
+
+本文檔定義驗證檢查與代碼提交階段的規則。
+
+> **相關規則**：
+>
+> - 開發階段：`workflow-development.mdc`
+> - 測試規則：`workflow-testing.mdc`
+> - 文檔更新：`workflow-documentation.mdc`
+
+## 階段 5: 驗證與檢查
+
+### 規則 5.1: 執行檢查工具
+
+**必須執行以下檢查**：
+
+1. **工作流程檢查**
+
+   ```bash
+   npm run workflow:check
+   ```
+
+   - 檢查是否添加了 @ARCH 註解
+   - 檢查文檔是否已更新
+
+2. **文檔同步檢查**
+
+   ```bash
+   npm run check-architecture
+   ```
+
+   - 檢查文檔是否與程式碼同步
+
+3. **註解驗證**
+
+   ```bash
+   npm run arch:validate
+   ```
+
+   - 驗證 @ARCH 註解格式正確
+
+4. **UX-測試 對應檢查**
+   ```bash
+   npm run ux:test:check
+   ```
+   - 檢查所有 UX 路徑是否有對應測試
+   - 檢查失敗時阻止提交
+
+### 規則 5.2: 驗證文檔完整性
+
+**必須確認**：
+
+- [ ] 功能描述準確
+- [ ] 程式碼位置正確
+- [ ] UI 元素已列出
+- [ ] 關鍵功能已說明
+- [ ] 服務函數已記錄（如適用）
+
+### 規則 5.3: 使用自動化工具
+
+**可用的工具**：
+
+```bash
+# 分析變更並生成文檔更新建議
+npm run doc:update <檔案路徑>
+
+# 檢查工作流程規則
+npm run workflow:check
+
+# 檢查文檔同步
+npm run check-architecture
+
+# 驗證註解
+npm run arch:validate
+
+# 掃描 @ARCH 註解
+npm run arch:scan
+
+# 檢查 hash 同步
+npm run arch:check
+```
+
+## 階段 6: 提交代碼
+
+### 規則 6.1: Git 操作
+
+**提交前必須**：
+
+```bash
+git add .
+git commit -m "feat: 新增功能名稱"
+```
+
+### 規則 6.2: Pre-commit Hook 自動檢查
+
+**Husky 會自動執行**：
+
+- `npm run arch:validate` - 註解驗證（失敗會阻止提交）
+- `npm run check-architecture:enhanced` - 文檔同步檢查（僅警告，不阻止提交）
+- `npm run workflow:check` - 工作流程檢查（失敗會阻止提交）
+- `npm run ux:test:check` - UX-測試 對應檢查（失敗會阻止提交）
+
+**注意**：如果檢查失敗，必須修復問題後重新提交，**不要使用 `--no-verify` 跳過檢查**。
+
+## 違規處理
+
+### 違規類型
+
+1. **嚴重違規**（阻止提交）
+
+   - 新增組件未添加 @ARCH 註解
+   - 新增組件未更新 docs/features/README.md
+   - 新增服務未更新 ARCHITECTURE.md
+   - 修改 types.ts 未更新資料模型
+   - 新增或修改 UX 路徑未新增或更新對應測試
+
+2. **警告**（不阻止提交）
+   - 修改組件未添加 @ARCH 註解（建議）
+   - 文檔同步問題（建議）
+
+### 修復流程
+
+1. **查看錯誤訊息**
+
+   ```bash
+   npm run workflow:check
+   ```
+
+2. **獲取更新建議**
+
+   ```bash
+   npm run doc:update <檔案路徑>
+   ```
+
+3. **更新文檔**
+
+   - 根據建議更新對應文檔
+   - 參考本規則文檔
+
+4. **重新檢查**
+   ```bash
+   npm run workflow:check
+   ```
+
+## 何時載入此規則
+
+此規則在以下情況自動載入：
+
+- 執行 Git 提交相關操作
+- 執行檢查工具命令
+- 進行驗證相關的對話
+- Pre-commit hook 執行時

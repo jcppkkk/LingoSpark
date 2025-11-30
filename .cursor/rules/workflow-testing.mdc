@@ -1,0 +1,411 @@
+---
+alwaysApply: false
+description: 測試實作規則 - Vitest 測試框架使用規範與 UX 測試對應
+applicableFiles:
+  - "tests/**/*.tsx"
+  - "tests/**/*.ts"
+  - "**/*.test.tsx"
+  - "**/*.test.ts"
+---
+
+# 測試實作規則
+
+本文檔定義測試實作相關的規則，包括測試框架使用規範和 UX 測試對應要求。
+
+> **相關規則**：
+>
+> - TDD 工作流程：`workflow-tdd.mdc`
+> - 開發階段：`workflow-development.mdc`
+> - 驗證提交：`workflow-verification.mdc`
+
+## UX 路徑與測試對應
+
+### 規則 2.4: UX 路徑與測試對應
+
+**新增或修改 UX 路徑時，必須同時新增或更新對應測試**：
+
+- 測試檔案命名規則：`tests/ux/UX####.test.tsx`（例如：`UX0001.test.tsx`）
+- 測試必須包含：觸發條件、操作步驟、預期結果的驗證
+- 測試檔案必須在 `tests/ux/` 目錄下
+- 使用共用測試元件（符合 DRY & KISS 原則）
+
+**重要**：測試必須完全符合 UX 定義，詳見「規則 2.6: 測試與 UX 定義一致性檢查」
+
+**範例**：
+
+```typescript
+// tests/ux/UX0001.test.tsx
+import { describe, it, expect } from "vitest";
+import { renderWithProviders } from "../utils/test-helpers";
+import Dashboard from "../../components/Dashboard";
+
+describe("UX0001: 查看學習統計", () => {
+  it("應該在頁面載入時顯示學習統計", async () => {
+    // 觸發條件：頁面載入
+    // 操作步驟：自動載入
+    // 預期結果：顯示統計資訊
+  });
+});
+```
+
+## 測試框架使用規範
+
+### 規則 2.5: 測試框架使用規範
+
+**本專案使用 Vitest 作為測試框架，必須遵循以下規範**：
+
+#### 2.5.1: 使用 Vitest API，禁止使用 Jest API
+
+❌ **錯誤**：使用 Jest API
+
+```typescript
+import { jest } from "@jest/globals";
+
+const mockFn = jest.fn();
+jest.mock("../../services/storageService");
+```
+
+✅ **正確**：使用 Vitest API
+
+```typescript
+import { vi } from "vitest";
+
+const mockFn = vi.fn();
+vi.mock("../../services/storageService");
+```
+
+#### 2.5.2: 正確導入 Vitest 函數
+
+**必須從 `vitest` 導入所有測試相關函數**：
+
+```typescript
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+```
+
+#### 2.5.3: Mock 函數類型定義
+
+**使用 Vitest 的類型定義**：
+
+❌ **錯誤**：
+
+```typescript
+expectedCallback?: jest.Mock;
+soundFunction: jest.Mock;
+```
+
+✅ **正確**：
+
+```typescript
+expectedCallback?: ReturnType<typeof vi.fn>;
+soundFunction: ReturnType<typeof vi.fn>;
+```
+
+#### 2.5.4: 測試超時時間管理
+
+**當所有外部 API 都已 mock 時，測試理論上不應該超時**。如果測試仍然超時，必須分析真正耗時的原因：
+
+**常見耗時原因**：
+
+1. **測試本身的超時時間設置不當**
+
+   - 測試超時時間應大於所有 `waitFor` 超時的總和
+   - 預設測試超時為 5000ms，如果 `waitFor` 使用 10000ms，測試會先超時
+
+2. **多個 `waitFor` 串聯累積時間**
+
+   - 多個 `waitFor` 串聯時，累積時間可能超過測試超時
+   - 應優化測試邏輯，減少不必要的 `waitFor` 串聯
+
+3. **React 狀態更新和重新渲染**
+
+   - `userEvent` 操作是異步的，需要等待 React 狀態更新完成
+   - 多個狀態更新會觸發多次重新渲染
+   - 應使用 `act()` 確保狀態更新完成，或適當增加等待時間
+
+4. **DOM 查詢效率問題**
+   - 複雜的 DOM 查詢（如 `getAllByRole` + `find`）可能較慢
+   - 應使用更精確的查詢方式
+
+**最佳實踐**：
+
+```typescript
+// ✅ 正確：測試超時大於所有 waitFor 超時的總和
+it('測試名稱', async () => {
+  // waitFor 1: 5000ms
+  await waitFor(() => { ... }, { timeout: 5000 });
+  // waitFor 2: 3000ms
+  await waitFor(() => { ... }, { timeout: 3000 });
+  // 測試超時應至少 > 5000 + 3000 = 8000ms
+}, { timeout: 10000 });
+
+// ❌ 錯誤：測試超時小於 waitFor 超時
+it('測試名稱', async () => {
+  // waitFor 使用 10000ms，但測試超時只有 5000ms
+  await waitFor(() => { ... }, { timeout: 10000 });
+}, { timeout: 5000 }); // 測試會先超時
+
+// ✅ 正確：優化測試邏輯，減少 waitFor 串聯
+it('測試名稱', async () => {
+  // 合併多個條件到一個 waitFor
+  await waitFor(() => {
+    expect(screen.getByText('文字1')).toBeInTheDocument();
+    expect(screen.getByText('文字2')).toBeInTheDocument();
+  }, { timeout: 5000 });
+});
+```
+
+**問題診斷流程**：
+
+1. **確認所有外部 API 都已 mock**
+
+   - 檢查是否所有 `vi.mock()` 都已設置
+   - 確認 mock 函數立即返回，不包含真實延遲
+
+2. **分析測試超時時間設置**
+
+   - 檢查測試本身的超時時間
+   - 檢查所有 `waitFor` 的超時時間
+   - 確認測試超時 > 所有 `waitFor` 超時的總和
+
+3. **優化測試邏輯**
+
+   - 減少不必要的 `waitFor` 串聯
+   - 合併多個條件到一個 `waitFor`
+   - 使用更精確的 DOM 查詢方式
+
+4. **如果仍超時，檢查 React 狀態更新**
+   - 確認 `userEvent` 操作已完成
+   - 使用 `act()` 確保狀態更新完成
+   - 適當增加等待時間（但應先確認是否必要）
+
+#### 2.5.5: 測試環境設定
+
+**確保測試環境正確設定**：
+
+- `tests/setup.ts` 已配置 localStorage mock
+- `tests/setup.ts` 已配置 IndexedDB mock（使用 `fake-indexeddb`）
+- 所有外部服務都應使用 `vi.mock()` 進行 mock
+
+#### 2.5.6: 測試檔案結構
+
+**每個測試檔案應包含**：
+
+```typescript
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithProviders } from "../utils/test-helpers";
+
+// Mock 服務
+vi.mock("../../services/storageService", () => ({
+  getStats: vi.fn(),
+  getCards: vi.fn(),
+}));
+
+describe("UX####: 測試名稱", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // 設置預設 mock
+  });
+
+  it("應該符合觸發條件、操作步驟與預期結果", async () => {
+    // 觸發條件：[說明觸發條件]
+    // 操作步驟：
+    // 1. [步驟 1]
+    // 2. [步驟 2]
+    // ...
+    // 預期結果：
+    // - [預期結果 1]
+    // - [預期結果 2]
+    // ...
+    // 測試實作
+  });
+});
+```
+
+### 規則 2.6: 測試與 UX 定義一致性檢查
+
+**測試必須完全符合 UX 定義**：
+
+#### 2.6.1: 測試必須驗證所有預期結果
+
+**測試必須驗證 UX 定義中的所有預期結果**：
+
+- 每個預期結果都必須有對應的測試斷言
+- 測試斷言必須準確反映預期結果
+- 不能遺漏任何預期結果
+
+#### 2.6.2: 測試必須執行所有操作步驟
+
+**測試必須執行 UX 定義中的所有操作步驟**：
+
+- 每個操作步驟都必須在測試中執行
+- 操作順序必須與 UX 定義一致
+- 不能跳過任何操作步驟
+
+#### 2.6.3: 測試觸發條件必須與 UX 定義一致
+
+**測試必須在正確的觸發條件下執行**：
+
+- 測試的初始狀態必須符合 UX 定義的觸發條件
+- 測試環境必須模擬正確的使用者情境
+- 不能在不正確的條件下執行測試
+
+#### 2.6.4: 測試描述必須與 UX 定義一致
+
+**測試描述必須包含 UX 定義的完整資訊**：
+
+- 觸發條件的說明
+- 操作步驟的說明
+- 預期結果的說明
+
+**範例**：
+
+```typescript
+describe("UX0011: 手動輸入單字", () => {
+  it("應該在輸入單字並提交後將單字加入待處理列表", async () => {
+    // 觸發條件：使用者在製作新卡片標籤頁
+    // 操作步驟：
+    // 1. 使用者在製作新卡片標籤頁
+    // 2. 在輸入框輸入英文單字或片語
+    // 3. 點擊「新增」按鈕或按 Enter 鍵
+    // 4. 單字加入待處理列表
+    //
+    // 預期結果：
+    // - 輸入框可以輸入文字
+    // - 點擊「新增」或按 Enter 後，單字加入待處理列表
+    // - 輸入框清空，準備輸入下一個單字
+    // - 如果單字已存在，顯示錯誤訊息
+    // - 待處理列表顯示新加入的單字（狀態為「排隊中」）
+    // 測試實作必須驗證所有預期結果
+  });
+});
+```
+
+#### 2.6.5: 使用檢查工具驗證一致性
+
+**在完成測試後，必須使用檢查工具驗證**：
+
+```bash
+npm run tdd:check-ux-test
+```
+
+**檢查項目**：
+
+- UX 定義是否存在對應的測試
+- 測試描述是否包含 UX 定義的所有預期結果
+- 測試是否驗證了所有操作步驟
+- 測試觸發條件是否與 UX 定義一致
+
+## 自我改善原則
+
+### 規則 7.5: 自我改善原則
+
+**當發現測試實作錯誤時，必須改善對應的測試實作規則，防範之後再犯**：
+
+#### 7.5.1: 錯誤發現與記錄
+
+**當測試實作出現錯誤時**：
+
+1. **記錄錯誤類型**：
+
+   - 錯誤描述
+   - 錯誤發生的檔案和位置
+   - 錯誤的根本原因
+
+2. **分析錯誤模式**：
+   - 是否為常見錯誤？
+   - 是否可能再次發生？
+   - 是否有其他類似情況？
+
+#### 7.5.2: 規則更新流程
+
+**發現測試實作錯誤後，必須執行以下步驟**：
+
+1. **修正當前錯誤**：
+
+   - 立即修正測試實作
+   - 確保測試能正常運行
+
+2. **更新測試規則**：
+
+   - 在 `.cursor/rules/workflow-testing.mdc` 的「規則 2.5: 測試框架使用規範」中新增對應規則
+   - 提供錯誤範例和正確範例
+   - 說明如何避免此類錯誤
+
+3. **更新測試文檔**：
+
+   - 在 `docs/testing/how-to-run-tests.md` 的「常見問題」區段新增此錯誤
+   - 提供解決方案和預防措施
+
+4. **驗證規則有效性**：
+   - 執行 `npm run test:run` 確認所有測試通過
+   - 檢查是否有其他類似錯誤
+
+#### 7.5.3: 規則更新範例
+
+**範例：發現使用 `jest.fn()` 而非 `vi.fn()` 的錯誤**
+
+1. **修正錯誤**：
+
+   ```typescript
+   // 修正前
+   const mockFn = jest.fn();
+
+   // 修正後
+   import { vi } from "vitest";
+   const mockFn = vi.fn();
+   ```
+
+2. **更新規則**（在「規則 2.5.1」中）：
+
+   ````markdown
+   ❌ **錯誤**：使用 Jest API
+
+   ```typescript
+   const mockFn = jest.fn();
+   ```
+   ````
+
+   ✅ **正確**：使用 Vitest API
+
+   ```typescript
+   import { vi } from "vitest";
+   const mockFn = vi.fn();
+   ```
+
+   ```
+
+   ```
+
+3. **更新文檔**（在 `docs/testing/how-to-run-tests.md` 中）：
+
+   ```markdown
+   ### 問題 2: `jest is not defined`
+
+   **原因**：使用了 Jest API，但專案使用 Vitest
+
+   **解決**：將 `jest.fn()` 改為 `vi.fn()`，`jest.mock()` 改為 `vi.mock()`
+   ```
+
+#### 7.5.4: 持續改進
+
+**定期檢視測試規則**：
+
+- 檢查是否有新的錯誤模式
+- 更新規則以涵蓋更多情況
+- 確保規則文檔與實際實作一致
+
+**目標**：
+
+- 減少重複的測試實作錯誤
+- 提高測試程式碼品質
+- 確保測試框架使用的一致性
+
+## 何時載入此規則
+
+此規則在以下情況自動載入：
+
+- 編輯 `tests/` 目錄下的檔案
+- 創建或修改測試檔案（`*.test.tsx`, `*.test.ts`）
+- 進行測試相關的對話
+- 執行測試相關的命令

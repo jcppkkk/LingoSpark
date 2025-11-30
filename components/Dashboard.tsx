@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Icons, GOOGLE_DRIVE_CLIENT_ID } from '../constants';
 import { getStats } from '../services/storageService';
-import { LearningStats, SyncStatus } from '../types';
+import { LearningStats, SyncStatus, AppView } from '../types';
 import { performSync, subscribeToSyncStatus } from '../services/syncService';
 
 interface DashboardProps {
-  onNavigate: (view: any) => void;
-  views: any;
+  onNavigate: (view: AppView) => void;
+  views: typeof AppView;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ onNavigate, views }) => {
@@ -198,18 +198,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, views }) => {
           <span className="font-black text-2xl">管理單字卡</span>
         </button>
         {/* @ARCH:END Dashboard - UI: 管理單字卡按鈕 */}
-      </div>
-      {/* @ARCH: Dashboard.UI.Sentry 錯誤測試按鈕 */}
-      {/* Developer Tools */}
-      <div className="mt-auto pt-10 pb-4">
-        <div className="flex justify-center">
-          <button
-            onClick={() => onNavigate(views.ERROR_TEST)}
-            className="text-xs text-slate-400 hover:text-red-500 font-bold transition-colors"
-          >
-            Sentry 錯誤測試
-          </button>
-        </div>
       </div>
 
     </div>

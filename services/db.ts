@@ -4,6 +4,8 @@
  * Stores structured data (Cards) and binary data (Images) separately.
  */
 
+import { Flashcard } from '../types';
+
 const DB_NAME = 'LingoSparkDB';
 const DB_VERSION = 1;
 const STORE_CARDS = 'cards';
@@ -83,7 +85,7 @@ export const initDB = (): Promise<IDBDatabase> => {
 // @ARCH: db - FEAT: 資料庫操作介面
 export const dbOps = {
   // @ARCH: db - FEAT: 取得所有單字卡
-  async getAllCards(): Promise<any[]> {
+  async getAllCards(): Promise<Flashcard[]> {
     const db = await initDB();
     return new Promise((resolve, reject) => {
       const transaction = db.transaction([STORE_CARDS, STORE_IMAGES], 'readonly');
@@ -116,7 +118,7 @@ export const dbOps = {
   },
 
   // @ARCH: db - FEAT: 儲存單字卡
-  async saveCard(card: any): Promise<void> {
+  async saveCard(card: Flashcard): Promise<void> {
     const db = await initDB();
     return new Promise((resolve, reject) => {
       const transaction = db.transaction([STORE_CARDS, STORE_IMAGES], 'readwrite');
@@ -163,7 +165,7 @@ export const dbOps = {
 
   // @ARCH: db - UX: 匯出資料用於同步
   // Export all data for Sync (JSON format)
-  async exportDataForSync(): Promise<{cards: any[]}> {
+  async exportDataForSync(): Promise<{cards: Flashcard[]}> {
     const db = await initDB();
     return new Promise((resolve) => {
       const transaction = db.transaction([STORE_CARDS], 'readonly');
@@ -174,7 +176,7 @@ export const dbOps = {
 
   // @ARCH: db - UX: 從同步匯入資料
   // Import data from Sync
-  async importDataFromSync(cards: any[]): Promise<void> {
+  async importDataFromSync(cards: Flashcard[]): Promise<void> {
     const db = await initDB();
     return new Promise((resolve, reject) => {
       const transaction = db.transaction([STORE_CARDS], 'readwrite');

@@ -160,7 +160,7 @@ const LearningMode: React.FC<LearningModeProps> = ({ onFinish }) => {
               >
                 {levelOptions.map(option => (
                   <option key={option.value} value={option.value}>
-                    {option.label} {option.value > 0 && `(${getCardsByLevel(allCards, option.value).length} 個單字)`}
+                    {option.label} {option.value > 0 && `(${getCardsByLevel(allCards, option.value)?.length || 0} 個單字)`}
                   </option>
                 ))}
               </select>

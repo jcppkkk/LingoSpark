@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { initDB, dbOps } from '../services/db';
+import { Flashcard } from '../types';
 
 describe('資料庫版本升級測試', () => {
   beforeEach(async () => {
@@ -134,7 +135,7 @@ describe('資料庫版本升級測試', () => {
     });
 
     // 步驟 3: 驗證資料是否保留
-    const retrievedCard = await new Promise<any>((resolve, reject) => {
+    const retrievedCard = await new Promise<Flashcard>((resolve, reject) => {
       const transaction = dbV2.transaction(['cards'], 'readonly');
       const store = transaction.objectStore('cards');
       const request = store.get('test-card-1');
@@ -235,7 +236,7 @@ describe('資料庫版本升級測試', () => {
     });
 
     // 驗證所有資料都保留
-    const allCards = await new Promise<any[]>((resolve, reject) => {
+    const allCards = await new Promise<Flashcard[]>((resolve, reject) => {
       const transaction = dbV2.transaction(['cards'], 'readonly');
       const store = transaction.objectStore('cards');
       const request = store.getAll();

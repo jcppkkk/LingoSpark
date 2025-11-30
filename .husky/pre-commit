@@ -57,3 +57,25 @@ fi
 # 基礎架構檢查（可選，僅警告）
 echo "🔍 檢查架構文檔同步狀態..."
 npm run check-architecture:enhanced || true
+
+# UX-測試 對應檢查
+echo "🔍 檢查 UX-測試 對應..."
+npm run ux:test:check
+
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ 提交被阻止：請為所有 UX 路徑新增對應測試"
+  echo "💡 提示：執行 npm run ux:test:check:fix 自動生成測試模板"
+  exit 1
+fi
+
+# 智慧測試：使用 lint-staged 只測試有變動的檔案
+echo "🧪 執行智慧測試（僅測試變更的檔案）..."
+npx lint-staged
+
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ 提交被阻止：相關測試失敗"
+  echo "💡 提示：請修復測試錯誤後再提交"
+  exit 1
+fi

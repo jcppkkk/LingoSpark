@@ -2,8 +2,7 @@ export enum AppView {
   DASHBOARD = 'DASHBOARD',
   ADD_WORD = 'ADD_WORD',
   PRACTICE = 'PRACTICE',
-  CARD_DETAILS = 'CARD_DETAILS',
-  ERROR_TEST = 'ERROR_TEST'
+  CARD_DETAILS = 'CARD_DETAILS'
 }
 
 export interface WordAnalysis {

@@ -41,7 +41,7 @@ function getChangedFiles() {
       .filter(f => f && (f.endsWith('.tsx') || f.endsWith('.ts')));
     
     return { staged: stagedFiles, modified: modifiedFiles };
-  } catch (_error) {
+  } catch {
     return { staged: [], modified: [] };
   }
 }
@@ -76,7 +76,7 @@ function isDocumented(filePath) {
   
   // 讀取所有功能檔案內容
   const featuresDir = path.join(__dirname, '..', 'docs', 'features');
-  const featureFiles = ['dashboard.md', 'word-library.md', 'learning-mode.md', 'flashcard.md', 'error-test.md'];
+  const featureFiles = ['dashboard.md', 'word-library.md', 'learning-mode.md', 'flashcard.md'];
   for (const featureFile of featureFiles) {
     const featurePath = path.join(featuresDir, featureFile);
     if (fs.existsSync(featurePath)) {

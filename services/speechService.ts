@@ -157,8 +157,15 @@ export const speakWord = async (
       };
 
       utterance.onerror = (event) => {
+        // 'interrupted' 錯誤是正常的（例如用戶快速切換卡片或組件卸載）
+        // 不需要記錄或拒絕，靜默處理即可
+        if (event.error === 'interrupted') {
+          resolve(); // 中斷視為成功完成（因為是預期的行為）
+          return;
+        }
+        // 其他錯誤才記錄和拒絕
         console.error('語音播放錯誤:', event);
-        reject(new Error('語音播放失敗'));
+        reject(new Error(`語音播放失敗: ${event.error || 'unknown error'}`));
       };
 
       synth.speak(utterance);
@@ -221,8 +228,15 @@ export const speakSentence = async (
       };
 
       utterance.onerror = (event) => {
+        // 'interrupted' 錯誤是正常的（例如用戶快速切換卡片或組件卸載）
+        // 不需要記錄或拒絕，靜默處理即可
+        if (event.error === 'interrupted') {
+          resolve(); // 中斷視為成功完成（因為是預期的行為）
+          return;
+        }
+        // 其他錯誤才記錄和拒絕
         console.error('語音播放錯誤:', event);
-        reject(new Error('語音播放失敗'));
+        reject(new Error(`語音播放失敗: ${event.error || 'unknown error'}`));
       };
 
       synth.speak(utterance);

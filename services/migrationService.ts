@@ -1,4 +1,10 @@
-import { Flashcard } from '../types';
+import { Flashcard, WordAnalysis } from '../types';
+
+// 舊版本的 WordAnalysis 可能包含已移除的欄位
+interface LegacyWordAnalysis extends WordAnalysis {
+  mnemonicHint?: string;
+  imagePrompt?: string;
+}
 
 /**
  * Migration System for Flashcard Data
@@ -99,10 +105,13 @@ const migrationToV2 = (card: Flashcard): Flashcard => {
  */
 const migrationToV3 = (card: Flashcard): Flashcard => {
   // Remove imageUrl and imagePrompt from Flashcard
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { imageUrl: _imageUrl, imagePrompt: _imagePrompt, ...cardWithoutImages } = card;
   
   // Remove mnemonicHint and imagePrompt from WordAnalysis (if they exist)
-  const { mnemonicHint: _mnemonicHint, imagePrompt: _dataImagePrompt, ...dataWithoutMnemonic } = card.data as any;
+  const legacyData = card.data as LegacyWordAnalysis;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { mnemonicHint: _mnemonicHint, imagePrompt: _dataImagePrompt, ...dataWithoutMnemonic } = legacyData;
   
   return {
     ...cardWithoutImages,
@@ -125,11 +134,13 @@ const migrationToV3 = (card: Flashcard): Flashcard => {
  */
 const migrationToV4 = (card: Flashcard): Flashcard => {
   // Remove mnemonicHint from WordAnalysis if it exists
-  const { mnemonicHint: _mnemonicHint, ...dataWithoutMnemonic } = card.data as any;
+  const legacyData = card.data as LegacyWordAnalysis;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { mnemonicHint: _mnemonicHint, ...dataWithoutMnemonic } = legacyData;
   
   // Preserve imagePrompt in data if it exists
   // If it was removed in V3, it will be added when the card is re-analyzed
-  const migratedData = {
+  const migratedData: WordAnalysis = {
     ...dataWithoutMnemonic,
     // imagePrompt will be preserved if it exists, or added by analyzeWord when card is updated
   };

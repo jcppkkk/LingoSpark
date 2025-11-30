@@ -10,11 +10,14 @@
 App.tsx (路由控制)
 ├── Dashboard (儀表板)
 ├── WordLibrary (字庫管理/製作新卡片)
+│   └── FlashcardComponent (單字卡組件)
+│   └── ImageRegenerateModal (圖片重新生成模態框)
 ├── LearningMode (兒童學習模式)
 │   ├── LearningModeTab (學習模式)
+│   │   └── FlashcardComponent (單字卡組件)
+│   │   └── ColoredWord (彩色單字組件)
 │   ├── BlockModeTab (積木模式)
 │   └── DictationModeTab (聽寫模式)
-└── ErrorTest (錯誤測試，開發用)
 ```
 
 **詳細功能描述**：請參考 `docs/features/README.md`
@@ -31,12 +34,12 @@ App.tsx (路由控制)
 
 - `analyzeWord()` - 分析單字（音節、詞源、例句，適合小三學生）
 - `extractWordsFromImage()` - 從圖片提取單字
+- `generateMnemonicImage()` - 生成單字記憶圖片
 
 **使用的 AI 模型**：
 
 - `gemini-2.5-flash` - 文字分析
-
-**注意**：已移除記憶提示和圖像生成相關功能（兒童學習模式不需要）
+- `gemini-2.0-flash-exp` - 圖像生成
 
 ---
 
@@ -116,7 +119,7 @@ App.tsx (路由控制)
 
 **用途**：
 
-- 自動將單字以每10個一組進行分級
+- 自動將單字以每 10 個一組進行分級
 - 支援 Level 選擇功能
 - 用於兒童學習模式的分組學習
 
@@ -249,9 +252,9 @@ App.tsx (路由控制)
 
 ```typescript
 enum LearningMode {
-  LEARNING = 'learning',    // 學習模式
-  BLOCK = 'block',          // 積木模式
-  DICTATION = 'dictation'   // 聽寫模式
+  LEARNING = "learning", // 學習模式
+  BLOCK = "block", // 積木模式
+  DICTATION = "dictation", // 聽寫模式
 }
 ```
 
@@ -261,6 +264,36 @@ enum LearningMode {
 {
   level: number;            // Level 編號 (1, 2, 3...)
   cards: Flashcard[];       // 該 Level 的單字卡
+}
+```
+
+### LearningStats
+
+```typescript
+{
+  totalCards: number; // 總單字卡數量
+  dueCards: number; // 待複習的單字卡數量
+  learnedCount: number; // 已學習的單字卡數量（repetition > 3）
+}
+```
+
+### SyncStatus
+
+```typescript
+{
+  isSyncing: boolean; // 是否正在同步
+  lastSyncedAt: number | null; // 最後同步時間戳
+  error: string | null; // 同步錯誤訊息（如果有的話）
+}
+```
+
+### VoiceOption
+
+```typescript
+{
+  voice: SpeechSynthesisVoice; // 語音合成語音物件
+  name: string; // 語音名稱
+  lang: string; // 語音語言代碼
 }
 ```
 
@@ -280,13 +313,13 @@ enum AppView {
   ADD_WORD = "ADD_WORD",
   PRACTICE = "PRACTICE",
   CARD_DETAILS = "CARD_DETAILS",
-  ERROR_TEST = "ERROR_TEST",
 }
 ```
 
 **路由控制**：`App.tsx` (renderView 方法)
 
 **瀏覽器歷史記錄整合**：
+
 - 使用 URL hash 來表示當前視圖（例如：`#/dashboard`）
 - 整合 `history.pushState` 和 `popstate` 事件，支援瀏覽器前進/後退按鈕
 - 導航函數 `navigate()` 會同時更新應用狀態和瀏覽器歷史記錄
@@ -302,7 +335,6 @@ enum AppView {
 
 - Google Drive Client ID
 - 圖示定義 (Icons)
-- 功能開關 (ENABLE_ERROR_TEST)
 
 ---
 

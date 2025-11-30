@@ -11,6 +11,11 @@ export default defineConfig(({ mode }) => {
         environment: 'jsdom',
         setupFiles: './tests/setup.ts',
         css: true,
+        env: {
+          // 為測試環境提供預設的 API Key（測試時會 mock，這裡只是避免初始化錯誤）
+          API_KEY: env.GEMINI_API_KEY || 'test-api-key',
+          GEMINI_API_KEY: env.GEMINI_API_KEY || 'test-api-key',
+        },
       },
       server: {
         port: 3000,

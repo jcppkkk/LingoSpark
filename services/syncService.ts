@@ -1,6 +1,19 @@
 import { dbOps } from "./db";
 import { driveOps, authenticate, initGoogleDrive } from "./driveService";
-import { SyncStatus } from "../types";
+import { SyncStatus, Flashcard } from "../types";
+import { migrateCards } from "./migrationService";
+
+// Google Drive 檔案資訊
+interface DriveFile {
+  id: string;
+  name: string;
+  modifiedTime?: string;
+}
+
+// 同步資料格式
+interface SyncData {
+  cards: Flashcard[];
+}
 
 let syncState: SyncStatus = { isSyncing: false, lastSyncedAt: null, error: null };
 let listeners: ((status: SyncStatus) => void)[] = [];
@@ -66,10 +79,22 @@ export const performSync = async (isManual = false) => {
 
     // 2. Check Drive for 'cards.json'
     const files = await driveOps.listFiles();
-    const backupFile = files?.find((f: any) => f.name === 'lingospark_cards.json');
+    const backupFile = files?.find((f: DriveFile) => f.name === 'lingospark_cards.json');
 
-    // 3. Export Local Data
-    const localData = await dbOps.exportDataForSync();
+    // @ARCH: SyncService - FEAT: 同步前資料遷移
+    // 3. Export Local Data (ensure all local cards are migrated before export)
+    const rawLocalData = await dbOps.exportDataForSync();
+    const migratedLocalCards = migrateCards(rawLocalData.cards as Flashcard[]);
+    const localData = { cards: migratedLocalCards };
+    
+    // Save migrated local cards back to DB if needed
+    const needsLocalSave = rawLocalData.cards.some((card: Flashcard, index: number) => 
+      card.dataVersion !== migratedLocalCards[index].dataVersion
+    );
+    if (needsLocalSave) {
+      await Promise.all(migratedLocalCards.map(card => dbOps.saveCard(card)));
+      console.log(`[Sync] Migrated ${migratedLocalCards.length} local cards before sync`);
+    }
     
     // STRATEGY: 
     // If no backup exists -> Upload Local
@@ -79,10 +104,10 @@ export const performSync = async (isManual = false) => {
         await driveOps.createFile('lingospark_cards.json', JSON.stringify(localData));
     } else {
         // Download remote
-        const remoteContent: any = await driveOps.getFileContent(backupFile.id);
+        const remoteContent = await driveOps.getFileContent(backupFile.id);
         
         // Validate and parse remote content
-        let remoteCards: any[] = [];
+        let remoteCards: Flashcard[] = [];
         try {
             // Ensure remoteContent is a string
             const contentString = typeof remoteContent === 'string' 
@@ -104,11 +129,11 @@ export const performSync = async (isManual = false) => {
                     return; // Exit early, file is now recreated with local data
                 }
                 
-                const parsed = JSON.parse(contentString);
+                const parsed = JSON.parse(contentString) as SyncData;
                 remoteCards = parsed?.cards || [];
                 console.log(`[Sync] Loaded ${remoteCards.length} cards from Drive`);
             }
-        } catch (parseError: any) {
+        } catch (parseError: unknown) {
             // Check if this might be old multipart format
             const contentString = typeof remoteContent === 'string' 
                 ? remoteContent 
@@ -126,22 +151,28 @@ export const performSync = async (isManual = false) => {
             
             console.error("[Sync] Failed to parse remote file content:", parseError);
             console.error("[Sync] Remote content preview:", contentString.substring(0, 100));
-            throw new Error(`無法解析遠端檔案內容: ${parseError.message}`);
+            const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
+            throw new Error(`無法解析遠端檔案內容: ${errorMessage}`);
         }
         
         // Merge: Add remote cards that don't exist locally
         // (A better way is to compare updatedAt timestamps)
-        const localIds = new Set(localData.cards.map((c: any) => c.id));
-        const newRemoteCards = remoteCards.filter((c: any) => !localIds.has(c.id));
+        const localIds = new Set(localData.cards.map((c: Flashcard) => c.id));
+        const newRemoteCards = remoteCards.filter((c: Flashcard) => !localIds.has(c.id));
         
         if (newRemoteCards.length > 0) {
-            await dbOps.importDataFromSync(newRemoteCards);
-            console.log(`[Sync] Imported ${newRemoteCards.length} cards from Drive`);
+            // @ARCH: SyncService - FEAT: 遠端卡片遷移與匯入
+            // Migrate remote cards before importing
+            const migratedRemoteCards = migrateCards(newRemoteCards as Flashcard[]);
+            await dbOps.importDataFromSync(migratedRemoteCards);
+            console.log(`[Sync] Imported ${newRemoteCards.length} cards from Drive (migrated if needed)`);
         }
 
-        // Upload updated local back to drive
+        // Upload updated local back to drive (after merge and migration)
+        // This ensures Drive always has the latest migrated version
         const updatedLocalData = await dbOps.exportDataForSync();
         await driveOps.updateFile(backupFile.id, JSON.stringify(updatedLocalData));
+        console.log(`[Sync] Uploaded ${updatedLocalData.cards.length} cards to Drive`);
     }
 
     // 4. Handle Images (Delta Upload)
@@ -150,9 +181,10 @@ export const performSync = async (isManual = false) => {
     syncState = { ...syncState, isSyncing: false, lastSyncedAt: Date.now() };
     notify();
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Sync Error", err);
-    syncState = { ...syncState, isSyncing: false, error: err.message || "Sync Failed" };
+    const errorMessage = err instanceof Error ? err.message : "Sync Failed";
+    syncState = { ...syncState, isSyncing: false, error: errorMessage };
     notify();
   }
 };

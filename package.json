@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:run": "vitest run",
+    "test:run": "bash -c 'vitest run --reporter=default 2>&1 | tee >(ansi2txt > test-report.txt)' && node scripts/filter-test-report.js",
+    "test:run:verbose": "bash -c 'vitest run --reporter=verbose 2>&1 | tee >(ansi2txt > test-report.txt)'",
     "test:coverage": "vitest run --coverage",
     "check-architecture": "node scripts/check-architecture.js",
     "check-architecture:enhanced": "node scripts/check-architecture-enhanced.js",
@@ -22,10 +23,21 @@
     "arch:reorganize": "node scripts/arch-code-reorganizer-advanced.js",
     "doc:update": "node scripts/doc-update-helper.js",
     "workflow:check": "node scripts/workflow-checker.js",
+    "ux:test:check": "node scripts/ux-test-checker.js",
+    "ux:test:check:fix": "node scripts/ux-test-checker.js --fix",
+    "ux:test:list": "node scripts/ux-test-checker.js",
+    "tdd:check-ux-test": "node scripts/check-ux-test-alignment.js",
+    "tdd:check-feature-ux": "node scripts/check-feature-ux-alignment.js",
+    "tdd:check-all": "npm run tdd:check-ux-test && npm run tdd:check-feature-ux",
     "type-check": "tsc --noEmit",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "vitest related --run"
+    ]
   },
   "dependencies": {
     "@google/genai": "^1.30.0",
@@ -55,6 +67,7 @@
     "happy-dom": "^20.0.11",
     "husky": "^9.1.7",
     "jsdom": "^27.2.0",
+    "lint-staged": "^16.2.7",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.17",
     "typescript": "~5.8.2",

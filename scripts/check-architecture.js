@@ -131,7 +131,7 @@ function checkArchitectureSync() {
   
   // 讀取所有功能檔案內容
   const featuresDir = path.join(__dirname, '..', 'docs', 'features');
-  const featureFiles = ['dashboard.md', 'word-library.md', 'learning-mode.md', 'flashcard.md', 'error-test.md'];
+  const featureFiles = ['dashboard.md', 'word-library.md', 'learning-mode.md', 'flashcard.md'];
   for (const featureFile of featureFiles) {
     const featurePath = path.join(featuresDir, featureFile);
     if (fs.existsSync(featurePath)) {

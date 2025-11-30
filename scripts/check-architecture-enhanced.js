@@ -141,7 +141,7 @@ function checkInterfaceChanges(architectureContent) {
   const missingInterfaces = [];
   for (const iface of interfaces) {
     // 跳過一些內部使用的 interface
-    if (['DashboardProps', 'WordLibraryProps', 'ErrorTestProps'].includes(iface)) {
+    if (['DashboardProps', 'WordLibraryProps'].includes(iface)) {
       continue;
     }
     

@@ -53,7 +53,10 @@ const BlockModeTab: React.FC<BlockModeTabProps> = ({
       // 延遲一點播放，確保組件載入完成
       const timer = setTimeout(() => {
         speakWord(word, voice || undefined).catch(error => {
-          console.error('自動播放單字失敗:', error);
+          // 只記錄非 'interrupted' 錯誤
+          if (!error.message?.includes('interrupted')) {
+            console.error('自動播放單字失敗:', error);
+          }
         });
       }, 500); // 等待組件載入
       

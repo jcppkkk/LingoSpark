@@ -1,4 +1,4 @@
-import { Flashcard, LearningStats, CardStatus } from "../types";
+import { Flashcard, LearningStats, CardStatus, WordAnalysis } from "../types";
 import { DEFAULT_EFACTOR, DEFAULT_INTERVAL, DEFAULT_REPETITION } from "../constants";
 import { dbOps } from "./db";
 import { performSync } from "./syncService";
@@ -68,7 +68,7 @@ export const checkWordExists = async (word: string): Promise<boolean> => {
 };
 
 // @ARCH: storageService - FEAT: 建立新單字卡
-export const createNewCard = (analysisData: any, imageUrl?: string, status: CardStatus = CardStatus.GENERATING): Flashcard => {
+export const createNewCard = (analysisData: WordAnalysis, imageUrl?: string, status: CardStatus = CardStatus.GENERATING): Flashcard => {
   return {
     id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(), // Fallback
     word: analysisData.word,

@@ -30,3 +30,6 @@ dist-ssr
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# Test Reports
+test-report.txt

@@ -1,0 +1,175 @@
+---
+alwaysApply: true
+description: 工作流程最佳實踐 - 通用最佳實踐、範例與故障排除
+applicableFiles:
+  - "*.tsx"
+  - "*.ts"
+  - "*.js"
+  - "*.css"
+  - "*.md"
+---
+
+# 工作流程最佳實踐
+
+本文檔定義工作流程的通用最佳實踐、範例流程和故障排除指南。
+
+> **相關規則**：
+>
+> - 開發階段：`workflow-development.mdc`
+> - 測試規則：`workflow-testing.mdc`
+> - 文檔更新：`workflow-documentation.mdc`
+> - 驗證提交：`workflow-verification.mdc`
+
+## 最佳實踐
+
+### 規則 7.1: 開發時同步更新
+
+**不要等到最後才更新文檔**：
+
+- 邊開發邊更新，保持同步
+- 完成功能後立即更新文檔
+
+### 規則 7.2: 使用註解標記
+
+**充分利用 @ARCH 註解**：
+
+- 添加 @ARCH 註解幫助追蹤
+- 使用工具掃描和驗證
+
+### 規則 7.3: 定期檢查
+
+**提交前必須執行**：
+
+- 執行檢查工具
+- 定期審查文檔完整性
+
+### 規則 7.4: 保持格式一致
+
+**使用統一的標記符號**：
+
+- 保持文檔結構一致
+- 遵循既定的文檔模板
+
+### 規則 7.5: 優先執行項目管理
+
+**在執行計劃時，優先處理關鍵項目**：
+
+- 識別需要優先執行的項目（測試失敗、關鍵 bug、驗證需求等）
+- 將優先項目移到計劃文件的優先位置
+- 立即執行優先項目，完成後再繼續後續階段
+- 優先項目完成後，更新計劃文件標記為已完成
+
+**詳細說明請參考**：`.cursor/rules/workflow-documentation.mdc` 規則 3.2.1
+
+## 範例流程
+
+### 範例：新增字庫管理功能
+
+1. **創建組件並添加註解**
+
+   ```typescript
+   // @ARCH:START WordLibrary - UI: 字庫管理介面
+   export default function WordLibrary() {
+     // ...
+   }
+   // @ARCH:END WordLibrary - UI: 字庫管理介面
+   ```
+
+2. **執行檢查**
+
+   ```bash
+   npm run workflow:check
+   # 會提示需要更新 docs/features/README.md
+   ```
+
+3. **獲取更新建議**
+
+   ```bash
+   npm run doc:update components/WordLibrary.tsx
+   ```
+
+4. **更新文檔**
+
+   - 更新 `docs/features/README.md`
+   - 更新 `ARCHITECTURE.md`
+
+5. **驗證**
+
+   ```bash
+   npm run workflow:check
+   npm run check-architecture
+   ```
+
+6. **提交**
+   ```bash
+   git add .
+   git commit -m "feat: 新增字庫管理功能"
+   ```
+
+## 故障排除
+
+### 問題：檢查工具報告未記錄但實際已記錄
+
+**解決**：
+
+- 檢查檔案路徑格式（使用反引號）
+- 確認函數名拼寫正確
+- 檢查是否在正確的區段中
+
+### 問題：不知道該更新哪個文檔
+
+**參考**：
+
+- 功能描述、UI 元素 → `docs/features/README.md`
+- 服務層、資料模型 → `ARCHITECTURE.md`
+- 詳細規則：`.cursor/rules/architecture-maintenance.mdc`
+
+### 問題：忘記更新文檔
+
+**預防**：
+
+- 使用 `npm run check-architecture` 檢查
+- Pre-commit hook 會自動提醒
+- 在 Code Review 時檢查
+
+## 注意事項
+
+### 不需要更新文檔的情況
+
+- 僅修改純視覺樣式（顏色、字體大小、間距等，不影響功能或 UX）
+- 僅修復 bug 且不影響功能描述
+- 僅重構程式碼結構但功能不變
+- 僅更新註解或文檔字串
+
+### 必須更新文檔的情況
+
+- 新增任何公開 API（export function/component）→ 更新 `ARCHITECTURE.md` 和 `docs/features/README.md`
+- 修改使用者可見的功能 → 更新 `docs/features/README.md`
+- 新增或修改資料結構 → 更新 `ARCHITECTURE.md`
+- 新增路由或視圖 → 更新 `ARCHITECTURE.md` 和 `docs/features/README.md`
+
+### CSS 與樣式變更的處理
+
+**CSS 檔案已包含在 `applicableFiles` 範圍內**，但需要根據變更類型判斷：
+
+- **純視覺調整**（如顏色、字體大小、間距等，不影響功能或 UX）：
+
+  - 不需要更新 `ARCHITECTURE.md`
+  - 不需要添加 @ARCH 註解標記
+
+- **影響 UI 結構或 UX 流程的樣式變更**（如響應式佈局、互動狀態、動畫效果、關鍵視覺元素）：
+  - 不需要更新 `ARCHITECTURE.md`（CSS 變更不影響架構文檔）
+  - **但需要在相關的 TSX 組件檔案中添加 @ARCH 註解標記**（UI/UX 變更）
+  - 例如：修改按鈕的 hover 狀態影響互動流程，應在組件中標記 `@ARCH: Component - UX: 按鈕互動狀態`
+  - 例如：新增響應式斷點影響佈局，應在組件中標記 `@ARCH: Component - UI: 響應式佈局`
+
+**判斷標準**：
+
+- 如果 CSS 變更影響了使用者的操作流程或互動方式 → 在組件中標記 `UX`
+- 如果 CSS 變更影響了 UI 元素的結構或佈局 → 在組件中標記 `UI`
+- 如果 CSS 變更僅是視覺美化，不影響功能或互動 → 無需標記
+
+## 維護責任
+
+- **AI Agent**：在進行上述變更時，自動檢查並更新文檔
+- **開發者**：在 code review 時確認文檔已同步更新

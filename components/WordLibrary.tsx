@@ -98,7 +98,7 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
         // 生成圖片
         let imageUrl: string | undefined;
         try {
-          if (analysis.imagePrompt) {
+          if (analysis?.imagePrompt) {
             imageUrl = await generateMnemonicImage(analysis.word, analysis.imagePrompt);
           }
         } catch (imgErr) {
@@ -122,11 +122,11 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
         // 新增完成後切換到字庫管理標籤頁，不跳回主畫面
         setActiveTab('library');
 
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error("Processing failed for", item.word, err);
         
         let msg = '分析失敗';
-        const eStr = (err.message || err.toString()).toLowerCase();
+        const eStr = (err instanceof Error ? err.message : String(err)).toLowerCase();
         
         if (eStr.includes('safety') || eStr.includes('blocked')) {
             msg = '內容涉及敏感話題，無法生成';
@@ -955,7 +955,7 @@ const WordLibrary: React.FC<WordLibraryProps> = ({ onCancel, onSuccess }) => {
                     {queue.map(item => (
                         <div 
                             key={item.id} 
-                            onClick={() => item.card && setPreviewItem(item)}
+                            onClick={() => (item.card || item.status === 'ERROR') && setPreviewItem(item)}
                             className={`p-3 mb-2 rounded-2xl flex items-center justify-between border-2 transition-all cursor-pointer relative overflow-hidden group
                                 ${previewItem?.id === item.id ? 'border-primary bg-white shadow-lg z-10 scale-[1.02]' : 'border-transparent bg-white hover:border-slate-200'}
                             `}

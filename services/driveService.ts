@@ -1,14 +1,67 @@
 import { GOOGLE_DRIVE_API_KEY, GOOGLE_DRIVE_CLIENT_ID, GOOGLE_DRIVE_SCOPES } from "../constants";
 
+// Google API 類型定義
+interface GapiClient {
+  init(config: GapiInitConfig): Promise<void>;
+  load(api: string, callback: () => void): void;
+  client: {
+    init(config: GapiInitConfig): Promise<void>;
+    getToken(): TokenResponse | null;
+    setToken(token: TokenResponse): void;
+  };
+}
+
+interface GapiInitConfig {
+  discoveryDocs?: string[];
+  apiKey?: string;
+}
+
+interface GoogleAccounts {
+  oauth2: {
+    initTokenClient(config: TokenClientConfig): TokenClient;
+  };
+}
+
+interface TokenClient {
+  callback: (response: TokenResponse | ErrorResponse) => void;
+  requestAccessToken(options: { prompt?: string }): void;
+}
+
+interface TokenClientConfig {
+  client_id: string;
+  scope: string;
+  callback: () => void;
+}
+
+interface TokenResponse {
+  access_token: string;
+  expires_in?: number;
+  scope?: string;
+  token_type?: string;
+}
+
+interface ErrorResponse {
+  error: string;
+  error_description?: string;
+}
+
+interface DriveFile {
+  id: string;
+  name: string;
+  modifiedTime?: string;
+}
+
 declare global {
   interface Window {
-    gapi: any;
-    google: any;
-    setGoogleToken?: (tokenData: any) => void;
+    gapi: GapiClient;
+    google: {
+      accounts: GoogleAccounts;
+    };
+    setGoogleToken?: (tokenData: TokenResponse) => void;
   }
 }
 
-let tokenClient: any;
+let tokenClient: TokenClient | null = null;
 let gapiInited = false;
 let gisInited = false;
 
@@ -47,7 +100,7 @@ export const initGoogleDrive = async (): Promise<boolean> => {
 const startGapi = (resolve: (val: boolean) => void) => {
     window.gapi.load('client', async () => {
       try {
-        const initConfig: any = {
+        const initConfig: GapiInitConfig = {
           discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
         };
 
@@ -125,10 +178,10 @@ export const authenticate = async (): Promise<void> => {
     }, 300000); // 5分鐘超時
 
     // Override the callback for this specific request
-    tokenClient.callback = async (resp: any) => {
+    tokenClient.callback = async (resp: TokenResponse | ErrorResponse) => {
       clearTimeout(timeoutId);
       
-      if (resp.error) {
+      if ('error' in resp && resp.error) {
         // Detailed error logging for common OAuth mismatch
         if (resp.error === 'invalid_request' && resp.error_description?.includes('redirect_uri')) {
              console.error(`[OAuth Error] Origin Mismatch! Go to Cloud Console > Credentials > OAuth Client. Add URI: ${window.location.origin}`);
@@ -159,7 +212,7 @@ export const authenticate = async (): Promise<void> => {
             console.warn("[OAuth] 無法保存 Token 到 localStorage:", e);
           }
           console.log("[OAuth] 認證成功");
-          resolve(resp);
+          resolve(undefined);
         } else {
           reject(new Error("認證完成但無法取得 access token，請重新嘗試"));
         }
@@ -261,14 +314,46 @@ export const setTokenManually = async (tokenData: {
 
 // Expose setTokenManually to window for easy access in browser console
 if (typeof window !== 'undefined') {
-  window.setGoogleToken = async (tokenData: any) => {
+  window.setGoogleToken = async (tokenData: TokenResponse) => {
     try {
       await setTokenManually(tokenData);
       console.log("✅ Token 設置成功！現在可以進行雲端備份了。");
-    } catch (error: any) {
-      console.error("❌ Token 設置失敗:", error.message);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("❌ Token 設置失敗:", errorMessage);
       console.error("提示：請確保應用已完全載入，或先執行 initGoogleDrive()");
     }
+  };
+}
+
+// 擴展 GapiClient 以包含 Drive API
+interface GapiClientWithDrive extends GapiClient {
+  client: {
+    init(config: GapiInitConfig): Promise<void>;
+    getToken(): TokenResponse | null;
+    setToken(token: TokenResponse): void;
+    drive: {
+      files: {
+        list(params: {
+          spaces: string;
+          fields: string;
+          pageSize: number;
+        }): Promise<{
+          result: {
+            files: DriveFile[];
+          };
+        }>;
+        get(params: {
+          fileId: string;
+          alt: string;
+        }): Promise<{
+          body: string | unknown;
+        }>;
+        delete(params: {
+          fileId: string;
+        }): Promise<void>;
+      };
+    };
   };
 }
 
@@ -276,8 +361,9 @@ if (typeof window !== 'undefined') {
 // 3. File Operations in AppData
 export const driveOps = {
   // @ARCH: driveService - FEAT: 列出檔案
-  async listFiles() {
-    const response = await window.gapi.client.drive.files.list({
+  async listFiles(): Promise<DriveFile[]> {
+    const client = window.gapi as unknown as GapiClientWithDrive;
+    const response = await client.client.drive.files.list({
       spaces: 'appDataFolder',
       fields: 'files(id, name, modifiedTime)',
       pageSize: 100
@@ -304,7 +390,7 @@ export const driveOps = {
       body: JSON.stringify(fileMetadata)
     });
     
-    const createdFile = await createResponse.json();
+    const createdFile = await createResponse.json() as { id: string };
     const fileId = createdFile.id;
     
     // Step 2: Upload file content using media upload
@@ -338,7 +424,8 @@ export const driveOps = {
   // @ARCH: driveService - FEAT: 取得檔案內容
   async getFileContent(fileId: string): Promise<string> {
     try {
-      const response = await window.gapi.client.drive.files.get({
+      const client = window.gapi as unknown as GapiClientWithDrive;
+      const response = await client.client.drive.files.get({
         fileId: fileId,
         alt: 'media'
       });
@@ -353,21 +440,24 @@ export const driveOps = {
         // Empty file
         return '';
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[Drive] Failed to get file content:", error);
-      throw new Error(`無法讀取檔案內容: ${error.message || '未知錯誤'}`);
+      const errorMessage = error instanceof Error ? error.message : '未知錯誤';
+      throw new Error(`無法讀取檔案內容: ${errorMessage}`);
     }
   },
 
   // @ARCH: driveService - FEAT: 刪除檔案
   async deleteFile(fileId: string): Promise<void> {
     try {
-      await window.gapi.client.drive.files.delete({
+      const client = window.gapi as unknown as GapiClientWithDrive;
+      await client.client.drive.files.delete({
         fileId: fileId
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("[Drive] Failed to delete file:", error);
-      throw new Error(`無法刪除檔案: ${error.message || '未知錯誤'}`);
+      const errorMessage = error instanceof Error ? error.message : '未知錯誤';
+      throw new Error(`無法刪除檔案: ${errorMessage}`);
     }
   }
 };

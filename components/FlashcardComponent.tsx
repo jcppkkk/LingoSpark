@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Flashcard, CardStatus } from '../types';
 import { Icons } from '../constants';
-import { speakWord, speakSentence } from '../services/speechService';
+import { speakWord, speakSentence, stopSpeaking } from '../services/speechService';
 
 interface FlashcardComponentProps {
   card: Flashcard;
@@ -77,10 +77,11 @@ const FlashcardComponent: React.FC<FlashcardComponentProps> = ({
   // @ARCH: FlashcardComponent - FEAT: 自動播放語音
   // 自動播放：正面播放單字，背面播放例句
   useEffect(() => {
-    // 如果單字改變，重置狀態
+    // 如果單字改變，重置狀態並停止當前播放
     if (word !== lastWordRef.current) {
       lastWordRef.current = word;
       lastFlippedState.current = null;
+      stopSpeaking(); // 停止當前播放
       // 如果使用內部狀態管理，重置為正面
       if (externalIsFlipped === undefined) {
         setInternalIsFlipped(false);
@@ -100,21 +101,38 @@ const FlashcardComponent: React.FC<FlashcardComponentProps> = ({
           // 正面：播放單字
 // @ARCH: FlashcardComponent.UI.音標與音節顯示
           speakWord(word, voice || undefined).catch(error => {
-            console.error('自動播放單字失敗:', error);
+            // 只記錄非 'interrupted' 錯誤
+            if (!error.message?.includes('interrupted')) {
+              console.error('自動播放單字失敗:', error);
+            }
           });
         } else {
           // 背面：播放例句
           if (sentence) {
             speakSentence(sentence, voice || undefined).catch(error => {
-              console.error('自動播放例句失敗:', error);
+              // 只記錄非 'interrupted' 錯誤
+              if (!error.message?.includes('interrupted')) {
+                console.error('自動播放例句失敗:', error);
+              }
             });
           }
         }
       }, 300); // 等待翻轉動畫開始
       
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        // 組件卸載或狀態改變時停止語音播放
+        stopSpeaking();
+      };
     }
   }, [isFlipped, word, sentence, voice, autoPlay, isGenerating, externalIsFlipped]);
+  
+  // 組件卸載時清理語音播放
+  useEffect(() => {
+    return () => {
+      stopSpeaking();
+    };
+  }, []);
 
   // Render syllables with visual stress indicator
   const renderPhonics = () => {

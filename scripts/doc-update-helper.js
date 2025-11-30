@@ -35,7 +35,6 @@ const COMPONENT_TO_FEATURE_FILE = {
   'BlockModeTab': 'learning-mode.md',
   'DictationModeTab': 'learning-mode.md',
   'FlashcardComponent': 'flashcard.md',
-  'ErrorTest': 'error-test.md',
 };
 
 // 根據組件名稱獲取對應的功能檔案
@@ -141,7 +140,7 @@ function isDocumented(filePath, componentName, functions, types) {
     featuresContent = fs.readFileSync(FEATURES_README, 'utf-8');
     
     // 讀取所有功能檔案
-    const featureFiles = ['dashboard.md', 'word-library.md', 'learning-mode.md', 'flashcard.md', 'error-test.md'];
+    const featureFiles = ['dashboard.md', 'word-library.md', 'learning-mode.md', 'flashcard.md'];
     for (const featureFile of featureFiles) {
       const featurePath = path.join(FEATURES_DIR, featureFile);
       if (fs.existsSync(featurePath)) {

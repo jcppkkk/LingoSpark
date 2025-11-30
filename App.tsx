@@ -3,9 +3,7 @@ import { AppView } from './types';
 import Dashboard from './components/Dashboard';
 import WordLibrary from './components/WordLibrary';
 import LearningMode from './components/LearningMode';
-import { ENABLE_ERROR_TEST } from './constants';
 import { initSync } from './services/syncService';
-import ErrorTest from './components/ErrorTest';
 
 // 視圖到 URL hash 的映射
 const VIEW_TO_HASH: Record<AppView, string> = {
@@ -13,7 +11,6 @@ const VIEW_TO_HASH: Record<AppView, string> = {
   [AppView.ADD_WORD]: '/add-word',
   [AppView.PRACTICE]: '/practice',
   [AppView.CARD_DETAILS]: '/card-details',
-  [AppView.ERROR_TEST]: '/error-test',
 };
 
 // URL hash 到視圖的映射
@@ -22,7 +19,6 @@ const HASH_TO_VIEW: Record<string, AppView> = {
   '/add-word': AppView.ADD_WORD,
   '/practice': AppView.PRACTICE,
   '/card-details': AppView.CARD_DETAILS,
-  '/error-test': AppView.ERROR_TEST,
 };
 
 // 從 URL hash 獲取視圖
@@ -110,16 +106,6 @@ const App: React.FC = () => {
         return (
           <LearningMode 
             onFinish={() => navigate(AppView.DASHBOARD)}
-          />
-        );
-      case AppView.ERROR_TEST:
-        if (!ENABLE_ERROR_TEST) {
-          // Redirect to dashboard if error test is disabled
-          return <Dashboard onNavigate={navigate} views={AppView} />;
-        }
-        return (
-          <ErrorTest 
-            onBack={() => navigate(AppView.DASHBOARD)}
           />
         );
       default:
